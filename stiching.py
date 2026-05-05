@@ -5,18 +5,17 @@ import numpy as np
 import cv2
 
 def cluster_notes_to_tab(all_frames, offsets, debug=True):
-    """
-    Collapses multi-frame note data. 
-    Isolated by string index and filtered to remove single-frame OCR glitches.
-    """
     global_points = []
     current_offset = 0
+    
+    # Track which frame each point came from for confidence scoring
     for i, frame in enumerate(all_frames):
         if i > 0:
             current_offset += offsets[i-1]
         for s_idx, string_notes in enumerate(frame):
             for x, fret in string_notes:
-                global_points.append([x + current_offset, s_idx, fret])
+                # Store: [global_x, string_idx, fret_value, frame_index]
+                global_points.append([x + current_offset, s_idx, fret, i])
 
     if not global_points:
         return []
@@ -25,40 +24,66 @@ def cluster_notes_to_tab(all_frames, offsets, debug=True):
     
     for s_idx in range(6):
         string_points = [p for p in global_points if p[1] == s_idx]
-        if not string_points:
-            continue
+        if not string_points: continue
             
         data = np.array([[p[0], 0] for p in string_points])
         
-        # min_samples=2: This is the key. 
-        # It requires a note to appear in at least TWO frames to be 'real'.
-        # This will automatically delete the 1-frame visualization bars.
-        clustering = DBSCAN(eps=10, min_samples=2).fit(data)
+        # Use a slightly larger epsilon to bridge small alignment gaps
+        # Lower min_samples to 1 to stop deleting unique detections
+        clustering = DBSCAN(eps=12, min_samples=1).fit(data)
         labels = clustering.labels_
         
         for label in set(labels):
-            if label == -1: continue # Outliers/Single-frame glitches are caught here
+            if label == -1: continue 
             
             cluster_indices = np.where(labels == label)[0]
             pts = [string_points[i] for i in cluster_indices]
             
+            num_frames = len(set(p[3] for p in pts))
+            raw_frets = [str(p[2]) for p in pts]
+            
+            processed_digits = []
+            symbol_counts = {'<': 0, '>': 0, '(': 0, ')': 0, 'X': 0}
+            
+            for f in raw_frets:
+                # 1. Extract Digits (Handle '41' -> '1' and 'X')
+                digit_match = "".join(filter(str.isdigit, f))
+                if digit_match:
+                    if digit_match == "41": digit_match = "1"
+                    processed_digits.append(digit_match)
+                elif 'X' in f.upper():
+                    processed_digits.append('X')
+
+                # 2. Count Symbol Occurrences
+                for char in symbol_counts.keys():
+                    if char in f: symbol_counts[char] += 1
+
+            # --- HEURISTIC: When to apply symbols ---
+            threshold = 0.6
+            is_harmonic = (symbol_counts['<'] + symbol_counts['>']) / num_frames >= threshold
+            is_ghost = (symbol_counts['('] + symbol_counts[')']) / num_frames >= threshold
+
+            # --- VALIDATION & CONSENSUS ---
+            is_valid_note = num_frames > 1 or len(processed_digits) > 0
+            if not is_valid_note: continue
+
             avg_x = np.mean([p[0] for p in pts])
             
-            raw_frets = [str(p[2]) for p in pts]
-            numeric_frets = [f for f in raw_frets if f.isdigit()]
-            
-            if numeric_frets:
-                consensus_fret = max(set(numeric_frets), key=numeric_frets.count)
+            if processed_digits:
+                consensus_val = max(set(processed_digits), key=processed_digits.count)
+                if is_harmonic and consensus_val != 'X': consensus_val = f"<{consensus_val}>"
+                if is_ghost and consensus_val != 'X': consensus_val = f"({consensus_val})"
             else:
-                consensus_fret = 'N'
+                consensus_val = 'N'
+
+            if consensus_val == 'N': continue # skip "N" values in the final tab
                 
-            final_tab.append({"x": avg_x, "string": s_idx, "fret": consensus_fret})
+            final_tab.append({"x": avg_x, "string": s_idx, "fret": consensus_val}) 
 
     final_tab.sort(key=lambda n: n["x"])
-
+    
     if debug: show_stitching_debug(global_points, final_tab)
     save_final_tab(final_tab)
-        
     return final_tab
 
 def show_stitching_debug(global_points, final_tab):
@@ -100,7 +125,7 @@ def show_stitching_debug(global_points, final_tab):
         # 3. Layer 2: Hover Reveal (Raw Frame Notes)
         # Show raw data within 30 pixels of the mouse
         hover_radius = 30
-        for gx, s_idx, fret in global_points:
+        for gx, s_idx, fret, _ in global_points:
             dist = abs(gx - global_mouse_x)
             if dist < hover_radius:
                 screen_x = int(gx - view_offset)
