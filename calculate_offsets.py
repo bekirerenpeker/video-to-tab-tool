@@ -54,43 +54,36 @@ def calculate_alignment_score(frame1, frame2, offset):
     total_score = 0
     total_dist = 0
     match_count = 0
-    possible_matches = 0
+    penalty_count = 0
+    
+    # Track total unique notes in both frames to calculate "Density"
+    total_notes_in_f1 = sum(len(s) for s in frame1)
+    total_notes_in_f2 = sum(len(s) for s in frame2)
 
-    # For each string
     for s_idx in range(6):
         notes1 = frame1[s_idx]
         notes2 = frame2[s_idx]
         matched_in_f2 = set()
 
-        # Check every note in Frame 1
         for x1, val1 in notes1:
             target_x_in_f2 = x1 - offset
-            
-            # Is this note even visible in Frame 2?
             is_visible_in_f2 = frame2_min <= target_x_in_f2 <= frame2_max
             
             best_match_idx = -1
             best_note_score = NEG_INF
             current_dist = INF
 
-            # Try to find its partner in Frame 2
             for i2, (x2, val2) in enumerate(notes2):
                 if i2 in matched_in_f2: continue
-                
                 dist = abs(x2 - target_x_in_f2)
                 if dist <= MATCH_RADIUS:
-                    # Calculate weight
-                    if val1 == val2 and val1 != 'N':
-                        score = PERFECT_MATCH_SCORE
-                    elif val1 == 'N' or val2 == 'N':
-                        score = PARTIAL_MATCH_SCORE
-                    else:
-                        score = CONFLICT_SCORE
+                    # Scoring logic
+                    if val1 == val2 and val1 != 'N': score = PERFECT_MATCH_SCORE
+                    elif val1 == 'N' or val2 == 'N': score = PARTIAL_MATCH_SCORE
+                    else: score = CONFLICT_SCORE
                     
                     if score > best_note_score:
-                        best_note_score = score
-                        current_dist = dist
-                        best_match_idx = i2
+                        best_note_score, current_dist, best_match_idx = score, dist, i2
 
             if best_match_idx != -1:
                 total_score += best_note_score
@@ -98,27 +91,35 @@ def calculate_alignment_score(frame1, frame2, offset):
                 matched_in_f2.add(best_match_idx)
                 match_count += 1
             elif is_visible_in_f2:
-                # Penalty: It SHOULD be there, but it isn't
                 total_score += NO_MATCH_SCORE
-                possible_matches += 1
-            else:
-                # Neutral: It's off-screen
-                total_score += OUTSIDE_BOUNDS_SCORE
+                penalty_count += 1
 
-        # Cleanup: Any notes left in Frame 2 that weren't matched 
-        # but are within the visible bounds of Frame 1?
+        # Check for unmatched notes in Frame 2 that should have been in Frame 1
         for i2, (x2, val2) in enumerate(notes2):
             if i2 not in matched_in_f2:
                 original_x_in_f1 = x2 + offset
                 if frame1_min <= original_x_in_f1 <= frame1_max:
                     total_score += NO_MATCH_SCORE
-                    possible_matches += 1
+                    penalty_count += 1
 
-    # Normalization: Score per "event" (either a match or a missed note)
-    divisor = match_count + possible_matches
-    if divisor == 0: return 0, 0
+    # --- THE FIX: CALCULATE WEIGHTED SCORE ---
+    active_event_count = match_count + penalty_count
+    if active_event_count == 0: return 0, 0
+
+    # 1. Base Quality: The average score of the overlapping area
+    avg_quality = total_score / active_event_count
     
-    return total_score / divisor, total_dist / max(1, match_count) 
+    # 2. Coverage Bonus: How many notes did we actually match relative 
+    # to the total notes in the frames? 
+    # This prevents "one lucky match" from winning.
+    coverage = match_count / (total_notes_in_f1 + total_notes_in_f2 - match_count)
+    
+    # 3. Final Weighted Score:
+    # We add a significant weight to coverage so that 100 matches 
+    # will always outweigh 1 match, even if the 1 match is "perfect".
+    weighted_score = avg_quality + (coverage * 500) 
+
+    return weighted_score, total_dist / max(1, match_count)
 
 def calculate_alignment_score_in_range(frame1, frame2, min_offset, max_offset, interval):
     offset = min_offset
