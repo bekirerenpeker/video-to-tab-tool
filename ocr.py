@@ -3,6 +3,8 @@ import pytesseract
 import numpy as np
 import concurrent.futures
 from queue import Queue
+import os
+import re
 
 # NOTE: Set your Tesseract path before initializing the pool if needed
 # pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
@@ -13,9 +15,9 @@ class TesseractThreadPool:
     safe multithreaded character recognition on multiple ROIs.
     """
     def __init__(self, pool_size=4):
-        # The configuration remains identical to the single-threaded version
-        self.config = r'--psm 10 -c tessedit_char_whitelist=0123456789X'
-        # Queue to hold initialized engine 'connections'
+        # PSM 13: Raw line mode. Better for 1-2 digits than PSM 10 (Single Char).
+        # PSM 7 (Single line) is also a strong alternative if 13 struggles.
+        self.config = r'--psm 13 -c tessedit_char_whitelist=0123456789X<('
         self.engine_pool = Queue()
         self.pool_size = pool_size
 
@@ -34,17 +36,30 @@ class TesseractThreadPool:
         best_conf = -1
 
         try:
-            # 2. Perform OCR
+            # Use image_to_data to get per-character or per-word confidence
             data = pytesseract.image_to_data(roi, config=engine_config, output_type=pytesseract.Output.DICT)
             
-            # Find the most confident result (usually only one for PSM 10)
+            # Filter and join text results
+            text_segments = []
+            confidences = []
+
             for j in range(len(data['text'])):
                 text = data['text'][j].strip()
                 if text:
-                    conf = int(data['conf'][j])
-                    if conf > best_conf:
-                        best_char = text
-                        best_conf = conf
+                    # Clean text to strictly match whitelist (prevents ghost characters)
+                    clean_text = re.sub(r'[^0123456789X<(]', '', text)
+                    if clean_text:
+                        text_segments.append(clean_text)
+                        confidences.append(int(data['conf'][j]))
+            
+            if text_segments:
+                best_char = "".join(text_segments)
+                best_conf = int(np.mean(confidences)) # Average confidence for multi-digit
+            
+            # Debugging for failed reads
+            if best_char == "":
+                if not os.path.exists("debug_ocr"): os.makedirs("debug_ocr")
+                cv2.imwrite(f"debug_ocr/fail_{np.random.randint(1000)}.png", roi)
         finally:
             # 3. CRUCIAL: Always return the engine to the pool, even if OCR fails
             self.engine_pool.put(engine_config)
@@ -62,50 +77,43 @@ def debug_and_recognize_characters_threaded(frame, all_notes_data, string_y_posi
     """
     debug_frame = frame.copy()
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    
-    avg_spacing = abs(string_y_positions[1] - string_y_positions[0])
-    border_padding = int(avg_spacing * 1.5)
 
-    # We use this to collect all pre-processed ROIs to send to threads
+    padding_px = 10
     pre_processed_rois = []
-    # Keeps track of where the results need to go back (string_index, x_pos, bounding_box)
     roi_metadata = []
 
-    # --- 1. Sequential Pre-processing ---
-    # This part is fast, so we keep it simple in the main thread
     for i, y_pos in enumerate(string_y_positions):
         for x_pos, [x, y, w, h] in all_notes_data[i]:
-            roi = cv2.getRectSubPix(gray, (w, h), (x, y))
+            roi = cv2.getRectSubPix(gray, (w, h), (x+w//2, y+h//2))
 
             if roi is not None:
-                # Polarity check
+                # 1. Binarization (Crucial for Tesseract)
+                # Ensure black text on white background
                 edge_mask = np.ones(roi.shape, dtype=bool)
-                edge_mask[3:-3, 3:-3] = False
-                avg_border = np.mean(roi[edge_mask])
-                if avg_border < 127: 
+                edge_mask[1:-1, 1:-1] = False
+                if np.mean(roi[edge_mask]) < 127: 
                     roi = cv2.bitwise_not(roi)
                 
-                # Resizing & Thresholding
-                roi = cv2.resize(roi, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
+                # 2. Resize to a height of about 30-50 pixels (Tesseract's sweet spot)
+                scaling = 45.0 / roi.shape[0]
+                roi = cv2.resize(roi, None, fx=scaling, fy=scaling, interpolation=cv2.INTER_CUBIC)
+                
+                # 3. Clean threshold
                 _, roi = cv2.threshold(roi, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
                 
-                # The moat padding
-                roi = cv2.copyMakeBorder(roi, border_padding, border_padding, border_padding, border_padding, cv2.BORDER_CONSTANT, value=[255, 255, 255])
+                # 4. Standardized Padding (The 'Moat')
+                roi = cv2.copyMakeBorder(roi, padding_px, padding_px, padding_px, padding_px, 
+                                        cv2.BORDER_CONSTANT, value=[255, 255, 255])
                 
                 pre_processed_rois.append(roi)
-                # Store original data for the final assembly and debug drawing
-                metadata = {
+                roi_metadata.append({
                     'string_idx': i,
                     'x': x_pos,
                     'bbox': (int(x), int(y), int(x + w), int(y + h))
-                }
-                roi_metadata.append(metadata)
+                }) 
 
+    if not pre_processed_rois: return results, debug_frame
     results = [[] for _ in range(6)]
-
-    # If no notes were detected in the frame, return early
-    if not pre_processed_rois:
-        return results, debug_frame
 
     # --- 2. Concurrent Character Recognition ---
     # Submit all pre-processed ROIs to the thread pool for simultaneous processing

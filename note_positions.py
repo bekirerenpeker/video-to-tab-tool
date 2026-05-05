@@ -119,8 +119,8 @@ def detect_note_bboxes(sample_frame, string_y_positions, debug=True):
                     # 1. Horizontal Bounds
                     x_min = current_note_pixels[0]
                     x_max = current_note_pixels[-1]
-                    width = (x_max - x_min + 1)
-                    center_x = x_min + (width // 2)
+                    width = int((x_max - x_min + 1) * 1.3)
+                    center_x = x_min + (width // 2) - int(width * 0.15)
 
                     note_slice = strip[:, x_min:x_max+1]
                     y_indices = np.where(np.sum(note_slice, axis=1) > 0)[0]
