@@ -4,15 +4,14 @@ import cv2
 import numpy as np
 import time
 
-# TODO: add custom edge cases of notes that the ocr mixes and give them a higher score
 INF, NEG_INF = 100000, -100000
 MATCH_RADIUS = 10
 JUMP_INTERVAL = 10
 
-PERFECT_MATCH_SCORE = 200 # same note
-PARTIAL_MATCH_SCORE = 70 # n and note
-CONFLICT_SCORE = -100 # different notes
-NO_MATCH_SCORE = -200 # no match within radius
+PERFECT_MATCH_SCORE = 100 # same note
+PARTIAL_MATCH_SCORE = 40 # n and note
+CONFLICT_SCORE = -50 # different notes
+NO_MATCH_SCORE = -150 # no match within radius
 OUTSIDE_BOUNDS_SCORE = 0 # note out of bounds
 
 def find_best_match_index(string1, string2, offset, note_idx):
@@ -33,10 +32,15 @@ def find_best_match_index(string1, string2, offset, note_idx):
             
     return best_match_idx, best_match_score, best_match_dist
 
+def get_frame_bounds(frame):
+    all_x = [note[0] for string in frame for note in string]
+    if not all_x: return 0, 0
+    return min(all_x), max(all_x)
+
 def get_offset_range_between_frames(frame1, frame2):
-    all_x1 = [note[0] for string in frame1 for note in string]
-    all_x2 = [note[0] for string in frame2 for note in string]
-    return 0, 1280
+    min1, max1 = get_frame_bounds(frame1)
+    min2, max2 = get_frame_bounds(frame2)
+    return 0, max1 - min2
 
 def calculate_alignment_score(frame1, frame2, offset):
     def get_pair_weight(val1, val2):
@@ -44,66 +48,102 @@ def calculate_alignment_score(frame1, frame2, offset):
         if val1 == 'N' or val2 == 'N': return PARTIAL_MATCH_SCORE
         return CONFLICT_SCORE
 
-    total_score, active_note_count = 0, 0
+    frame1_min, frame1_max = get_frame_bounds(frame1)
+    frame2_min, frame2_max = get_frame_bounds(frame2)
+    
+    total_score = 0
+    total_dist = 0
+    match_count = 0
+    possible_matches = 0
 
+    # For each string
     for s_idx in range(6):
         notes1 = frame1[s_idx]
         notes2 = frame2[s_idx]
-        matched_in_frame2 = set()
+        matched_in_f2 = set()
 
+        # Check every note in Frame 1
         for x1, val1 in notes1:
-            target_x = x1 - offset 
-            if 0 <= target_x <= 1280: active_note_count += 1 
+            target_x_in_f2 = x1 - offset
+            
+            # Is this note even visible in Frame 2?
+            is_visible_in_f2 = frame2_min <= target_x_in_f2 <= frame2_max
             
             best_match_idx = -1
-            best_match_score = -999
-            best_match_dist = INF
+            best_note_score = NEG_INF
+            current_dist = INF
 
-            for idx2, (x2, val2) in enumerate(notes2):
-                if idx2 in matched_in_frame2: continue
+            # Try to find its partner in Frame 2
+            for i2, (x2, val2) in enumerate(notes2):
+                if i2 in matched_in_f2: continue
                 
-                dist = abs(x2 - target_x)
+                dist = abs(x2 - target_x_in_f2)
                 if dist <= MATCH_RADIUS:
-                    current_pair_score = get_pair_weight(val1, val2)
-                    if current_pair_score < best_match_score or (current_pair_score == best_match_score and dist > best_match_dist): 
-                        continue
-
-                    best_match_score = current_pair_score
-                    best_match_dist = dist
-                    best_match_idx = idx2
+                    # Calculate weight
+                    if val1 == val2 and val1 != 'N':
+                        score = PERFECT_MATCH_SCORE
+                    elif val1 == 'N' or val2 == 'N':
+                        score = PARTIAL_MATCH_SCORE
+                    else:
+                        score = CONFLICT_SCORE
+                    
+                    if score > best_note_score:
+                        best_note_score = score
+                        current_dist = dist
+                        best_match_idx = i2
 
             if best_match_idx != -1:
-                total_score += best_match_score
-                matched_in_frame2.add(best_match_idx)
+                total_score += best_note_score
+                total_dist += current_dist
+                matched_in_f2.add(best_match_idx)
+                match_count += 1
+            elif is_visible_in_f2:
+                # Penalty: It SHOULD be there, but it isn't
+                total_score += NO_MATCH_SCORE
+                possible_matches += 1
             else:
-                if 0 <= target_x <= 1280: total_score += NO_MATCH_SCORE 
-                else: total_score += OUTSIDE_BOUNDS_SCORE
+                # Neutral: It's off-screen
+                total_score += OUTSIDE_BOUNDS_SCORE
 
-        for idx2, (x2, val2) in enumerate(notes2):
-            if idx2 not in matched_in_frame2:
-                original_x = x2 + offset
-                if 0 <= original_x <= 1280:
-                    active_note_count += 1
-                    total_score += NO_MATCH_SCORE 
-                else: total_score += OUTSIDE_BOUNDS_SCORE
-                    
-    if active_note_count == 0: return 0
-    return total_score / active_note_count
+        # Cleanup: Any notes left in Frame 2 that weren't matched 
+        # but are within the visible bounds of Frame 1?
+        for i2, (x2, val2) in enumerate(notes2):
+            if i2 not in matched_in_f2:
+                original_x_in_f1 = x2 + offset
+                if frame1_min <= original_x_in_f1 <= frame1_max:
+                    total_score += NO_MATCH_SCORE
+                    possible_matches += 1
+
+    # Normalization: Score per "event" (either a match or a missed note)
+    divisor = match_count + possible_matches
+    if divisor == 0: return 0, 0
+    
+    return total_score / divisor, total_dist / max(1, match_count) 
+
+def calculate_alignment_score_in_range(frame1, frame2, min_offset, max_offset, interval):
+    offset = min_offset
+    best_score, best_dist, best_offset = NEG_INF, INF, NEG_INF
+
+    while offset < max_offset:
+        score, dist = calculate_alignment_score(frame1, frame2, offset)
+        print(f"offset = {offset} (score: {score}, dist: {dist}, interval: {interval})")
+        if score > best_score or (score == best_score and dist < best_dist): 
+            best_score = score
+            best_dist = dist
+            best_offset = offset
+        offset += interval
+    
+    return best_score, best_offset
 
 def calculate_best_alignment(frame1, frame2):
     offset, max_offset = get_offset_range_between_frames(frame1, frame2)
-    best_score, best_offset = NEG_INF, NEG_INF
-    # print(f"max offset: {max_offset}")
+    crude_score, crude_offset = calculate_alignment_score_in_range(frame1, frame2, offset, max_offset, JUMP_INTERVAL)
+    if crude_offset == 0: return crude_score, crude_offset
+    print(f"crude = {crude_offset} (score: {crude_score})")
 
-    while offset < max_offset:
-        score = calculate_alignment_score(frame1, frame2, offset)
-        # print(f"score: {score} at offset {offset}")
-        if score > (best_score * 1.3):
-            best_score = score
-            best_offset = offset
-        offset += JUMP_INTERVAL
-    
-    return best_score, best_offset
+    fine_score, fine_offset = calculate_alignment_score_in_range(frame1, frame2, max(crude_offset - JUMP_INTERVAL, 0), min(crude_offset + JUMP_INTERVAL, max_offset), 1)
+    print(f"fine = {fine_offset} (score: {fine_score})")
+    return fine_score, fine_offset
 
 mouse_offset = 0
 def on_mouse(event, x, y, flags, param):
@@ -123,6 +163,9 @@ def show_alignment_debug(frame1, frame2, best_offset, best_score, frame_idx):
     start_time = time.time()
     user_pressed_enter = False
     user_pressed_space = False
+    frame1_min, frame1_max = get_frame_bounds(frame1)
+    frame2_min, frame2_max = get_frame_bounds(frame2)
+    min_offset, max_offset = get_offset_range_between_frames(frame1, frame2)
 
     while True:
         # Canvas: Height for 6 strings + space for info
@@ -159,6 +202,14 @@ def show_alignment_debug(frame1, frame2, best_offset, best_score, frame_idx):
                 ghost_x = int(x + mouse_offset) + 50
                 if 50 <= ghost_x <= width - 50:
                     cv2.drawMarker(canvas, (ghost_x, y), (0, 150, 0), cv2.MARKER_TILTED_CROSS, 10, 1)
+        
+        # 4. Draw Frame 1 bounds (Yellow)
+        cv2.rectangle(canvas, (frame1_min + 50, 50), (frame1_max + 50, 350), (0, 255, 255), 2)
+        cv2.putText(canvas, "FRAME 1", (frame1_min + 50, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
+
+        # 5. Draw Frame 2 bounds (Blue)
+        cv2.rectangle(canvas, (frame2_min + 50, 50), (frame2_max + 50, 350), (255, 0, 0), 2)
+        cv2.putText(canvas, "FRAME 2", (frame2_min + 50, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
         # Info Text
         cv2.putText(canvas, f"FRAME {frame_idx} -> {frame_idx+1}", (50, 400), 
@@ -170,6 +221,12 @@ def show_alignment_debug(frame1, frame2, best_offset, best_score, frame_idx):
         cv2.putText(canvas, f"OFFSET: {best_offset}", (50, 490), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
         cv2.putText(canvas, f"SCORE: {best_score}", (50, 520), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+        cv2.putText(canvas, f"OFFSET RANGE: {min_offset} - {max_offset}", (50, 550), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+        cv2.putText(canvas, f"FRAME 1 RANGE: {frame1_min} - {frame1_max}", (50, 580), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+        cv2.putText(canvas, f"FRAME 2 RANGE: {frame2_min} - {frame2_max}", (50, 610), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
 
         cv2.imshow("Alignment Debugger", canvas)
