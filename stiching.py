@@ -43,13 +43,11 @@ def cluster_notes_to_tab(all_frames, offsets, debug=True):
             raw_frets = [str(p[2]) for p in pts]
             
             processed_digits = []
-            symbol_counts = {'<': 0, '>': 0, '(': 0, ')': 0, 'X': 0}
+            symbol_counts = {'<': 0, '>': 0, '(': 0, ')': 0, 'X': 0, '2': 0, '0': 0}
             
             for f in raw_frets:
-                # 1. Extract Digits (Handle '41' -> '1' and 'X')
                 digit_match = "".join(filter(str.isdigit, f))
                 if digit_match:
-                    if digit_match == "41": digit_match = "1"
                     processed_digits.append(digit_match)
                 elif 'X' in f.upper():
                     processed_digits.append('X')
@@ -59,9 +57,10 @@ def cluster_notes_to_tab(all_frames, offsets, debug=True):
                     if char in f: symbol_counts[char] += 1
 
             # --- HEURISTIC: When to apply symbols ---
-            threshold = 0.6
-            is_harmonic = (symbol_counts['<'] + symbol_counts['>']) / num_frames >= threshold
-            is_ghost = (symbol_counts['('] + symbol_counts[')']) / num_frames >= threshold
+            h_tresh = 0.5 if symbol_counts['2'] > 0 else 0.4
+            g_tresh = 0.5 if symbol_counts['0'] > 0 else 0.4
+            is_harmonic = (symbol_counts['<'] + symbol_counts['>']) / num_frames >= h_tresh
+            is_ghost = (symbol_counts['('] + symbol_counts[')']) / num_frames >= g_tresh
 
             # --- VALIDATION & CONSENSUS ---
             is_valid_note = num_frames > 1 or len(processed_digits) > 0

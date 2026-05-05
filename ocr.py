@@ -18,7 +18,7 @@ class TesseractThreadPool:
     def __init__(self, pool_size=4):
         # PSM 13: Raw line mode. Better for 1-2 digits than PSM 10 (Single Char).
         # PSM 7 (Single line) is also a strong alternative if 13 struggles.
-        self.config = r'--psm 13 -c tessedit_char_whitelist=0123456789X<()>'
+        self.config = r'--psm 13 -c tessedit_char_whitelist=0123456789X<()>OoQU'
         self.engine_pool = Queue()
         self.pool_size = pool_size
 
@@ -48,7 +48,7 @@ class TesseractThreadPool:
                 text = data['text'][j].strip()
                 if text:
                     # Clean text to strictly match whitelist (prevents ghost characters)
-                    clean_text = re.sub(r'[^0123456789X<()>]', '', text)
+                    clean_text = re.sub(r'[^0123456789X<()>OoQU]', '', text)
                     if clean_text:
                         text_segments.append(clean_text)
                         confidences.append(int(data['conf'][j]))
@@ -57,8 +57,13 @@ class TesseractThreadPool:
                 best_char = "".join(text_segments)
                 best_conf = int(np.mean(confidences)) # Average confidence for multi-digit
             
+            # ocr commonly confuses 1's for 41
+            if best_char == "41": best_char = "1"
+            best_char = best_char.replace("O", "0").replace("o", "0").replace("Q", "0").replace("U", "0")
+            if best_char.isnumeric(): best_char = str(int(best_char)) # recudes multiple 0's to one 
+            
             # Debugging for failed reads
-            if best_char == "" and DEBUG:
+            if best_char == "4" and DEBUG:
                 if not os.path.exists("debug_ocr"): os.makedirs("debug_ocr")
                 cv2.imwrite(f"debug_ocr/fail_{np.random.randint(1000)}.png", roi)
         finally:
@@ -94,7 +99,21 @@ def debug_and_recognize_characters_threaded(frame, all_notes_data, string_y_posi
                 edge_mask[1:-1, 1:-1] = False
                 if np.mean(roi[edge_mask]) < 127: 
                     roi = cv2.bitwise_not(roi)
-                
+
+                # --- NEW: STRING STRIPPER (Fixes 1 being read as 4 or 7) ---
+                # We use a horizontal kernel to find and subtract the string lines
+                # that pass through the numbers (like in image_02dbfb.png).
+                binary_inv = cv2.bitwise_not(roi)
+                string_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (20, 1))
+                detected_lines = cv2.morphologyEx(binary_inv, cv2.MORPH_OPEN, string_kernel)
+                roi = cv2.subtract(binary_inv, detected_lines)
+                roi = cv2.bitwise_not(roi) # Invert back to black text on white
+
+                # --- NEW: GAUSSIAN BLUR (Fixes 0 being read as 6) ---
+                # Smoothing the pixelated edges (like in image_035bfe.png) helps 
+                # Tesseract see the '0' as a clean oval.
+                roi = cv2.GaussianBlur(roi, (3, 3), 0)
+
                 # 2. Resize to a height of about 30-50 pixels (Tesseract's sweet spot)
                 scaling = 45.0 / roi.shape[0]
                 roi = cv2.resize(roi, None, fx=scaling, fy=scaling, interpolation=cv2.INTER_CUBIC)
@@ -111,7 +130,7 @@ def debug_and_recognize_characters_threaded(frame, all_notes_data, string_y_posi
                     'string_idx': i,
                     'x': x_pos,
                     'bbox': (int(x), int(y), int(x + w), int(y + h))
-                }) 
+                })
 
     if not pre_processed_rois: return results, debug_frame
     results = [[] for _ in range(6)]

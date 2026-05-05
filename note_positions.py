@@ -1,7 +1,6 @@
 from template_remover import remove_all_templates
 import cv2
 import numpy as np
-import pytesseract
 import os
 
 def calibrate_strings(sample_frame):
@@ -93,7 +92,8 @@ def detect_note_bboxes(sample_frame, string_y_positions, debug=True):
 
     processed = preprocess_for_numbers(sample_frame, avg_spacing, debug)
     img_h, img_w = processed.shape
-    note_h = int(avg_spacing * 1.2)  
+    note_w = int(avg_spacing * 0.9)
+    note_h = int(avg_spacing * 1)
 
     for i, y in enumerate(string_y_positions):
         y_top = max(0, y - h_reach)
@@ -117,6 +117,7 @@ def detect_note_bboxes(sample_frame, string_y_positions, debug=True):
                     x_min = current_note_pixels[0]
                     x_max = current_note_pixels[-1]
                     width = int((x_max - x_min + 1) * 1.7)
+                    width = note_w
                     center_x = x_min + (width // 2) - int(width * 0.35)
 
                     note_slice = strip[:, x_min:x_max+1]
