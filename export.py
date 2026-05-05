@@ -225,4 +225,4 @@ def export_stitched_tab_visual(
 
 if __name__ == "__main__":
     final_tab = load_final_tab()
-    export_stitched_tab_visual(final_tab, spacing_ratio=0.0375)
+    export_stitched_tab_visual(final_tab, spacing_ratio=0.08)
