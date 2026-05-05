@@ -1,0 +1,68 @@
+{
+  "templates": [
+    {
+      "path": "templates/time_sig_44.png",
+      "target_ratio": 3
+    },
+    {
+      "path": "templates/time_sig_34.png",
+      "target_ratio": 3
+    },
+    {
+      "path": "templates/tab_text.png",
+      "target_ratio": 4.5
+    },
+    {
+      "path": "templates/s-gt_text.png",
+      "target_ratio": 2.3
+    },
+    {
+      "path": "templates/hor_bar.png",
+      "threshold": 0.8,
+      "target_ratio": 1
+    },
+    {
+      "path": "templates/squigly.png",
+      "threshold": 0.8,
+      "target_ratio": 2
+    },
+    {
+      "path": "templates/single_dot.png",
+      "threshold": 0.8,
+      "target_ratio": 1.8
+    },
+    {
+      "path": "templates/double_dots.png",
+      "target_ratio": 2
+    },
+    {
+      "path": "templates/hammer_on_big.png",
+      "target_ratio": 0.85,
+      "threshold": 0.8,
+      "mirror_vertical": true
+    },
+    {
+      "path": "templates/hammer_on_small.png",
+      "target_ratio": 0.85,
+      "threshold": 0.8,
+      "mirror_vertical": true
+    },
+    {
+      "path": "templates/bend_up_start.png",
+      "target_ratio": 2.75,
+      "mirror_vertical": true
+    },
+    {
+      "path": "templates/slide_big.png",
+      "target_ratio": 0.8,
+      "threshold": 0.8,
+      "mirror_vertical": true
+    },
+    {
+      "path": "templates/slide_small.png",
+      "target_ratio": 0.75,
+      "threshold": 0.8,
+      "mirror_vertical": true
+    }
+  ]
+}
