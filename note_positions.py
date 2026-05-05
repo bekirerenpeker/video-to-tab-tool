@@ -93,7 +93,7 @@ def detect_note_bboxes(sample_frame, string_y_positions, debug=True):
 
     processed = preprocess_for_numbers(sample_frame, avg_spacing, debug)
     img_h, img_w = processed.shape
-    note_h = int(avg_spacing * 1.1)  
+    note_h = int(avg_spacing * 1.2)  
 
     for i, y in enumerate(string_y_positions):
         y_top = max(0, y - h_reach)
@@ -116,8 +116,8 @@ def detect_note_bboxes(sample_frame, string_y_positions, debug=True):
                     # 1. Horizontal Bounds
                     x_min = current_note_pixels[0]
                     x_max = current_note_pixels[-1]
-                    width = int((x_max - x_min + 1) * 1.5)
-                    center_x = x_min + (width // 2) - int(width * 0.25)
+                    width = int((x_max - x_min + 1) * 1.7)
+                    center_x = x_min + (width // 2) - int(width * 0.35)
 
                     note_slice = strip[:, x_min:x_max+1]
                     y_indices = np.where(np.sum(note_slice, axis=1) > 0)[0]

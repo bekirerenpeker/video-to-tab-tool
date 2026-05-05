@@ -142,11 +142,11 @@ def debug_and_recognize_characters_threaded(frame, all_notes_data, string_y_posi
 
         if char:
             cv2.rectangle(debug_frame, (x1, y1), (x2, y2), color, 1)
-            cv2.putText(debug_frame, f"{char} ({conf}%)", (x1, y1 - 4),
+            cv2.putText(debug_frame, f"{char}", (x1+w+7, y1+h//2),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.35, color, 1, cv2.LINE_AA)
         else:
             cv2.rectangle(debug_frame, (x1, y1), (x2, y2), (255, 0, 255), 1)
-            cv2.putText(debug_frame, "NONE", (x1, y1 - 4),
+            cv2.putText(debug_frame, "N", (x1+w+7, y1+h//2),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255, 0, 255), 1, cv2.LINE_AA)
 
     return results, debug_frame
