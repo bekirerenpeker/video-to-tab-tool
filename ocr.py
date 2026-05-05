@@ -7,7 +7,8 @@ import os
 import re
 
 # NOTE: Set your Tesseract path before initializing the pool if needed
-# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+DEBUG = True
 
 class TesseractThreadPool:
     """
@@ -17,7 +18,7 @@ class TesseractThreadPool:
     def __init__(self, pool_size=4):
         # PSM 13: Raw line mode. Better for 1-2 digits than PSM 10 (Single Char).
         # PSM 7 (Single line) is also a strong alternative if 13 struggles.
-        self.config = r'--psm 13 -c tessedit_char_whitelist=0123456789X<('
+        self.config = r'--psm 13 -c tessedit_char_whitelist=0123456789X<()>'
         self.engine_pool = Queue()
         self.pool_size = pool_size
 
@@ -47,7 +48,7 @@ class TesseractThreadPool:
                 text = data['text'][j].strip()
                 if text:
                     # Clean text to strictly match whitelist (prevents ghost characters)
-                    clean_text = re.sub(r'[^0123456789X<(]', '', text)
+                    clean_text = re.sub(r'[^0123456789X<()>]', '', text)
                     if clean_text:
                         text_segments.append(clean_text)
                         confidences.append(int(data['conf'][j]))
@@ -57,7 +58,7 @@ class TesseractThreadPool:
                 best_conf = int(np.mean(confidences)) # Average confidence for multi-digit
             
             # Debugging for failed reads
-            if best_char == "":
+            if best_char == "" and DEBUG:
                 if not os.path.exists("debug_ocr"): os.makedirs("debug_ocr")
                 cv2.imwrite(f"debug_ocr/fail_{np.random.randint(1000)}.png", roi)
         finally:

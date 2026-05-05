@@ -25,7 +25,7 @@ def remove_single_template(processed_img, template_path, avg_spacing, target_rat
             _, max_val, _, max_loc = cv2.minMaxLoc(res)
             if max_val < threshold: break
             cv2.rectangle(processed_img, max_loc, (max_loc[0] + new_w, max_loc[1] + desired_h), 0, -1)
-            print(f"Removed {os.path.basename(template_path)}{suffix} at {max_loc}")
+            if debug: print(f"Removed {os.path.basename(template_path)}{suffix} at {max_loc}")
             
     if debug: 
         display_img = processed_img.copy() 

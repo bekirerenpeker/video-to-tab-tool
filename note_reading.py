@@ -52,5 +52,5 @@ def read_notes(folder, string_y_positions, debug=True, wait_for_space=False):
 
 if __name__ == "__main__":
     string_y_positions = read_offset_values(os.path.join("output", "string_positions.json"))
-    read_notes(os.path.join("output", "frame_dump"), string_y_positions, debug=True, wait_for_space=True)
+    read_notes(os.path.join("output", "frame_dump"), string_y_positions, debug=True, wait_for_space=False)
     cv2.destroyAllWindows()
