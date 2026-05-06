@@ -86,7 +86,7 @@ class TesseractThreadPool:
                     except ValueError: pass
             
             # Debugging for failed reads
-            if best_char == "4" and DEBUG:
+            if DEBUG and best_char == "4":
                 if not os.path.exists("debug_ocr"): os.makedirs("debug_ocr")
                 cv2.imwrite(f"debug_ocr/fail_{np.random.randint(1000)}.png", roi)
         finally:
@@ -155,8 +155,8 @@ def debug_and_recognize_characters_threaded(frame, all_notes_data, string_y_posi
                     'bbox': (int(x), int(y), int(x + w), int(y + h))
                 })
 
-    if not pre_processed_rois: return results, debug_frame
     results = [[] for _ in range(6)]
+    if not pre_processed_rois: return results, debug_frame
 
     # --- 2. Concurrent Character Recognition ---
     # Submit all pre-processed ROIs to the thread pool for simultaneous processing
@@ -183,7 +183,7 @@ def debug_and_recognize_characters_threaded(frame, all_notes_data, string_y_posi
             results[string_i].append((x_p, "N"))
 
         #if abs(y1 - y2) < 20: continue
-        color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+        color = (random.randint(0, 160), random.randint(0, 160), random.randint(0, 160))
         if char:
             cv2.rectangle(debug_frame, (x1, y1), (x2, y2), color, 1)
             cv2.putText(debug_frame, f"{char}", (x1+w+7, y1+h//2),

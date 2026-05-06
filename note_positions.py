@@ -78,9 +78,14 @@ def map_shapes_to_strings(bboxes, string_y_positions):
     notes = [[] for _ in range(6)]
 
     # split merged notes
-    for x, y, w, h in bboxes:
-        if h < avg_spacing * 1.5: continue
-        
+    split = []
+    for i, (x, y, w, h) in enumerate(bboxes):
+        if h < avg_spacing * 1.3: continue
+        note_count = int(round((h / avg_spacing)))
+        split_boxes = [(x, y+(i*h//note_count), w, h//note_count) for i in range(note_count)]
+        bboxes[i] = split_boxes[0]
+        for b in split_boxes[1:]: bboxes.append(b)
+        split.extend(split_boxes)
         
     for x, y, w, h in bboxes:
         center_x, center_y = x + (w // 2), y + (h // 2)
@@ -142,6 +147,5 @@ def detect_notes(frame, string_y_positions):
     processed = preprocess_for_numbers(frame, avg_spacing)
     bboxes = detect_shape_bboxes(processed)
     notes = map_shapes_to_strings(bboxes, string_y_positions)
-    return notes
     merged_notes = merge_close_points(notes)
     return merged_notes
