@@ -42,15 +42,15 @@ def cluster_notes_to_tab(all_frames, offsets):
             num_frames = len(set(p[3] for p in pts))
             raw_frets = [str(p[2]) for p in pts]
             
-            processed_digits = []
+            processed_symbols = []
             symbol_counts = {'<': 0, '>': 0, '(': 0, ')': 0, 'X': 0, '2': 0, '0': 0}
             
             for f in raw_frets:
                 digit_match = "".join(filter(str.isdigit, f))
-                if digit_match:
-                    processed_digits.append(digit_match)
-                elif 'X' in f.upper():
-                    processed_digits.append('X')
+                if digit_match: processed_symbols.append(digit_match)
+                elif 'X' in f.upper(): processed_symbols.append('X')
+                elif 'h' in f: processed_symbols.append('h')
+                elif 'p' in f: processed_symbols.append('p')
 
                 # 2. Count Symbol Occurrences
                 for char in symbol_counts.keys():
@@ -63,13 +63,13 @@ def cluster_notes_to_tab(all_frames, offsets):
             is_ghost = (symbol_counts['('] + symbol_counts[')']) / num_frames >= g_tresh
 
             # --- VALIDATION & CONSENSUS ---
-            is_valid_note = num_frames > 1 or len(processed_digits) > 0
+            is_valid_note = num_frames > 1 or len(processed_symbols) > 0
             if not is_valid_note: continue
 
             avg_x = np.mean([p[0] for p in pts])
             
-            if processed_digits:
-                consensus_val = max(set(processed_digits), key=processed_digits.count)
+            if processed_symbols:
+                consensus_val = max(set(processed_symbols), key=processed_symbols.count)
                 if is_harmonic and consensus_val != 'X': consensus_val = f"<{consensus_val}>"
                 if is_ghost and consensus_val != 'X': consensus_val = f"({consensus_val})"
             else:
