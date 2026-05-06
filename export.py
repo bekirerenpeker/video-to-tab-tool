@@ -6,7 +6,7 @@ def cleanup_previous_data(output_dir="output"):
     if os.path.exists(output_dir): shutil.rmtree(output_dir)
     os.makedirs(output_dir, exist_ok=True)
 
-def import_tab_data(filename=os.path.join("output", "tab_data.json")):
+def import_raw_tab_data(filename=os.path.join("output", "tab_data.json")):
     if not os.path.exists(filename): return None
     with open(filename, "r") as f:
         data = json.load(f)

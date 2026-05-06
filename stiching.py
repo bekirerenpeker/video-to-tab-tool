@@ -1,5 +1,5 @@
 from export import save_final_tab
-from export import read_list ,import_tab_data
+from export import read_list ,import_raw_tab_data
 from sklearn.cluster import DBSCAN
 import numpy as np
 import cv2
@@ -159,7 +159,7 @@ def show_stitching_debug(global_points, final_tab):
     cv2.destroyWindow("Interactive Stitcher")
     
 def main():
-    tab_data = import_tab_data()
+    tab_data = import_raw_tab_data()
     offsets = read_list()
     final_tab = cluster_notes_to_tab(tab_data, offsets)
 

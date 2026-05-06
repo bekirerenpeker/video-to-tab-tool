@@ -1,5 +1,5 @@
 from export import save_list
-from export import import_tab_data
+from export import import_raw_tab_data
 import cv2
 import numpy as np
 import time
@@ -258,7 +258,7 @@ def calculate_offsets(tab_data):
     return offsets
 
 def main():
-    tab_data = import_tab_data()
+    tab_data = import_raw_tab_data()
     offsets = calculate_offsets(tab_data)
     cv2.destroyAllWindows()
 
