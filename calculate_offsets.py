@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 import time
 
-DEBUG = False
+DEBUG = True
 
 INF, NEG_INF = 100000, -100000
 MATCH_RADIUS = 10

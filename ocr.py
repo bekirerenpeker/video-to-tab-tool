@@ -12,11 +12,13 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tessera
 DEBUG = False
 
 LOOKALIKES = {
-    '0': ['O','o','Q', 'U'],
-    '1': ['I', 'l', '41'],
-    '2': ['Z', 'z', '?'],
-    '6': ['b'],
-    '8': ['B']
+    "0": ["O","o","Q", "U", "e)"],
+    "1": ["I", "l", "41"],
+    "2": ["Z", "z", "?"],
+    "6": ["b"],
+    "7": ["C"],
+    "8": ["B"],
+    "X": ["x"],
 }
 
 class TesseractThreadPool:

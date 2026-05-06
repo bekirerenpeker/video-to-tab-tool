@@ -5,7 +5,7 @@ from terminal_utils import draw_progress_bar
 import os
 import cv2
 
-DEBUG=True
+DEBUG=False
 
 def read_notes(folder, string_y_positions):
     tab_data = []

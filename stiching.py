@@ -4,7 +4,7 @@ from sklearn.cluster import DBSCAN
 import numpy as np
 import cv2
 
-DEBUG = False
+DEBUG = True
 
 def cluster_notes_to_tab(all_frames, offsets):
     global_points = []
