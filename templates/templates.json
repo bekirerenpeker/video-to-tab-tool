@@ -60,19 +60,6 @@
       "path": "templates/bend_up_start.png",
       "target_ratio": 2.75,
       "mirror_vertical": true
-    },
-
-    {
-      "path": "templates/slide_big.png",
-      "target_ratio": 0.8,
-      "threshold": 0.8,
-      "mirror_vertical": true
-    },
-    {
-      "path": "templates/slide_small.png",
-      "target_ratio": 0.75,
-      "threshold": 0.8,
-      "mirror_vertical": true
     }
   ]
 }

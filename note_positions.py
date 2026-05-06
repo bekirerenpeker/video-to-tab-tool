@@ -63,12 +63,13 @@ def preprocess_for_numbers(frame, avg_spacing):
 def detect_shape_bboxes(frame):
     bboxes = []
     contours, _ = cv2.findContours(frame, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    padding = 1
     
     for cnt in contours:
         area = cv2.contourArea(cnt)
         if area < 10: continue
         x, y, w, h = cv2.boundingRect(cnt)
-        bboxes.append((x-1, y-1, w+2, h+2))
+        bboxes.append((x-padding, y-padding, w+2*padding, h+2*padding))
         
     return bboxes
 
@@ -76,11 +77,16 @@ def map_shapes_to_strings(bboxes, string_y_positions):
     avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
     notes = [[] for _ in range(6)]
 
+    # split merged notes
+    for x, y, w, h in bboxes:
+        if h < avg_spacing * 1.5: continue
+        
+        
     for x, y, w, h in bboxes:
         center_x, center_y = x + (w // 2), y + (h // 2)
         distances = np.abs(center_y - np.array(string_y_positions))
         min_dist = np.min(distances)
-        if min_dist > avg_spacing * 0.6: continue
+        if min_dist > avg_spacing * 0.3: continue 
         closest_string_index = distances.argmin()
         notes[closest_string_index].append((center_x, (x, y, w, h)))
     
@@ -131,10 +137,11 @@ def merge_close_points(notes, min_dist=10):
         
     return cleaned_all_notes
 
-def detect_notes(sample_frame, string_y_positions):
+def detect_notes(frame, string_y_positions):
     avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
-    processed = preprocess_for_numbers(sample_frame, avg_spacing)
+    processed = preprocess_for_numbers(frame, avg_spacing)
     bboxes = detect_shape_bboxes(processed)
     notes = map_shapes_to_strings(bboxes, string_y_positions)
+    return notes
     merged_notes = merge_close_points(notes)
     return merged_notes

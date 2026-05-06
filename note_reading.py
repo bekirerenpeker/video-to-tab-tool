@@ -12,7 +12,7 @@ def read_notes(folder, string_y_positions):
     all_frames = sorted([f for f in os.listdir(folder) if f.endswith('.png')])
     total_frames = len(all_frames)
 
-    for idx, f in enumerate(all_frames):
+    for idx, f in enumerate(all_frames[32:]):
         img_path = os.path.join(folder, f)
         frame = cv2.imread(img_path)
         if frame is None: continue
