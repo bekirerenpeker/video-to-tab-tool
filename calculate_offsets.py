@@ -1,8 +1,10 @@
-from export import save_offset_values
+from export import save_list
 from export import import_tab_data
 import cv2
 import numpy as np
 import time
+
+DEBUG = False
 
 INF, NEG_INF = 100000, -100000
 MATCH_RADIUS = 10
@@ -240,9 +242,9 @@ def show_alignment_debug(frame1, frame2, best_offset, best_score, frame_idx):
 
     return not user_pressed_enter
 
-def calculate_offsets(tab_data, debug=True):
+def calculate_offsets(tab_data):
     offsets = []
-    show_debug_window = debug 
+    show_debug_window = DEBUG 
 
     for i in range(len(tab_data) - 1):
         f1 = tab_data[i]
@@ -252,7 +254,7 @@ def calculate_offsets(tab_data, debug=True):
         print(f"Pair {i}-{i+1}: Best Score {best_score} | Best Offset {best_offset}")
         if show_debug_window: show_debug_window = show_alignment_debug(f1, f2, best_offset, best_score, i)
 
-    save_offset_values(offsets)
+    save_list(offsets)
     return offsets
 
 def main():

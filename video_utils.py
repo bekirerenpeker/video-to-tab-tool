@@ -27,7 +27,6 @@ def download_video(url, start_time, end_time):
     # Return the expected filename
     return f"{output_name}.mp4"
 
-
 def extract_frames(video_path, start_seconds, end_seconds, interval):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -86,3 +85,31 @@ def extract_frames(video_path, start_seconds, end_seconds, interval):
     cap.release()
     print(f"\nSaved {saved} frames.")
     return output_folder
+
+def calibrate_strings(sample_frame):
+    print("\n[ACTION] Click on each of the 6 strings (Top to Bottom).")
+    y_coords = []
+    
+    def click_event(event, x, y, flags, param):
+        display_img = sample_frame.copy()
+        # Horizontal Preview Line
+        cv2.line(display_img, (0, y), (sample_frame.shape[1], y), (255, 255, 0), 1)
+        
+        # Draw existing points
+        for yc in y_coords:
+            cv2.circle(display_img, (x, yc), 3, (0, 0, 255), -1)
+        
+        cv2.imshow("Calibrate Strings", display_img)
+
+        if event == cv2.EVENT_LBUTTONDOWN:
+            y_coords.append(y)
+            print(f"String {len(y_coords)} set at Y={y}")
+
+    cv2.imshow("Calibrate Strings", sample_frame)
+    cv2.setMouseCallback("Calibrate Strings", click_event)
+    
+    while len(y_coords) < 6:
+        if cv2.waitKey(1) & 0xFF == ord('q'): break
+        
+    cv2.destroyWindow("Calibrate Strings")
+    return sorted(y_coords)

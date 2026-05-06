@@ -1,10 +1,7 @@
-from export import save_offset_values
+from export import save_list
 from note_reading import read_notes
-from export import cleanup_previous_data, save_raw_tab_data, export_raw_frames_visual, export_stitched_tab_visual
-from terminal_utils import draw_progress_bar
-from video_utils import download_video, extract_frames
-from note_positions import merge_close_points, calibrate_strings, detect_note_bboxes
-from ocr import debug_and_recognize_characters_threaded
+from export import cleanup_previous_data, export_stitched_tab_visual
+from video_utils import download_video, extract_frames, calibrate_strings
 from calculate_offsets import calculate_offsets
 from stiching import cluster_notes_to_tab
 import sys
@@ -53,16 +50,16 @@ def main():
     sample_img_path = os.path.join(folder, "frame_0000.png")
     sample_img = cv2.imread(sample_img_path)
     string_y_positions = calibrate_strings(sample_img)
-    save_offset_values(string_y_positions, os.path.join("output", "string_positions.json"))
+    save_list(string_y_positions, os.path.join("output", "string_positions.json"))
 
     print("\n==== Processing frames into data... ====")
     tab_data = read_notes(folder, string_y_positions)
 
     print("\n==== Calculating offsets between frames... ====")
-    offsets = calculate_offsets(tab_data, debug=True)
+    offsets = calculate_offsets(tab_data)
 
     print("\n==== Stitching frames together... ====")
-    final_tab = cluster_notes_to_tab(tab_data, offsets, debug=True)
+    final_tab = cluster_notes_to_tab(tab_data, offsets)
 
     print("\n==== Exporting to Tablature... ====")
     export_stitched_tab_visual(final_tab)

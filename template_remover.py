@@ -2,7 +2,9 @@ import cv2
 import os
 import json
 
-def remove_single_template(processed_img, template_path, avg_spacing, target_ratio, threshold, mirror_vertical, debug=True):
+DEBUG = False
+
+def remove_single_template(processed_img, template_path, avg_spacing, target_ratio, threshold, mirror_vertical):
     template = cv2.imread(template_path, cv2.IMREAD_GRAYSCALE)
     if template is None: return processed_img
 
@@ -25,9 +27,9 @@ def remove_single_template(processed_img, template_path, avg_spacing, target_rat
             _, max_val, _, max_loc = cv2.minMaxLoc(res)
             if max_val < threshold: break
             cv2.rectangle(processed_img, max_loc, (max_loc[0] + new_w, max_loc[1] + desired_h), 0, -1)
-            if debug: print(f"Removed {os.path.basename(template_path)}{suffix} at {max_loc}")
+            if DEBUG: print(f"Removed {os.path.basename(template_path)}{suffix} at {max_loc}")
             
-    if debug: 
+    if DEBUG: 
         display_img = processed_img.copy() 
         img_h, img_w = display_img.shape[:2]
         margin = 15
@@ -45,12 +47,12 @@ def remove_single_template(processed_img, template_path, avg_spacing, target_rat
 
     return processed_img
 
-def remove_all_templates(processed_img, avg_spacing, templates_path="templates/templates.json", threshold=0.6, debug=True):
+def remove_all_templates(processed_img, avg_spacing, templates_path="templates/templates.json", threshold=0.6):
     if not os.path.exists(templates_path): return processed_img
     with open(templates_path, 'r') as f: config = json.load(f)
 
     for entry in config.get("templates", []):
-        if debug: print(f"Processing template: {entry['path']} with {entry['target_ratio']} target ratio")
+        if DEBUG: print(f"Processing template: {entry['path']} with {entry['target_ratio']} target ratio")
 
         processed_img = remove_single_template(
             processed_img, 
@@ -58,8 +60,7 @@ def remove_all_templates(processed_img, avg_spacing, templates_path="templates/t
             avg_spacing,
             entry["target_ratio"], 
             threshold=entry.get("threshold", threshold),
-            mirror_vertical=entry.get("mirror_vertical", False),
-            debug=debug
+            mirror_vertical=entry.get("mirror_vertical", False)
         )
             
     return processed_img

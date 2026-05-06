@@ -33,14 +33,14 @@ def save_raw_tab_data(all_frame_results, filename=os.path.join("output", "tab_da
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, "w") as f: json.dump(structured, f, indent=4)
 
-def save_offset_values(offsets, filename=os.path.join("output", "offsets.json")):
+def save_list(offsets, filename=os.path.join("output", "offsets.json")):
     """Saves the list of integer offsets to a JSON file."""
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, "w") as f:
         json.dump({"offsets": offsets}, f, indent=4)
     print(f"Offsets saved to {filename}")
 
-def read_offset_values(filename=os.path.join("output", "offsets.json")):
+def read_list(filename=os.path.join("output", "offsets.json")):
     """Reads the list of integer offsets from a JSON file."""
     if not os.path.exists(filename):
         print(f"No offset file found at {filename}")

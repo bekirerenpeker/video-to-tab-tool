@@ -1,10 +1,12 @@
 from export import save_final_tab
-from export import read_offset_values ,import_tab_data
+from export import read_list ,import_tab_data
 from sklearn.cluster import DBSCAN
 import numpy as np
 import cv2
 
-def cluster_notes_to_tab(all_frames, offsets, debug=True):
+DEBUG = False
+
+def cluster_notes_to_tab(all_frames, offsets):
     global_points = []
     current_offset = 0
     
@@ -17,9 +19,7 @@ def cluster_notes_to_tab(all_frames, offsets, debug=True):
                 # Store: [global_x, string_idx, fret_value, frame_index]
                 global_points.append([x + current_offset, s_idx, fret, i])
 
-    if not global_points:
-        return []
-
+    if not global_points: return []
     final_tab = []
     
     for s_idx in range(6):
@@ -81,7 +81,7 @@ def cluster_notes_to_tab(all_frames, offsets, debug=True):
 
     final_tab.sort(key=lambda n: n["x"])
     
-    if debug: show_stitching_debug(global_points, final_tab)
+    if DEBUG: show_stitching_debug(global_points, final_tab)
     save_final_tab(final_tab)
     return final_tab
 
@@ -160,7 +160,7 @@ def show_stitching_debug(global_points, final_tab):
     
 def main():
     tab_data = import_tab_data()
-    offsets = read_offset_values()
+    offsets = read_list()
     final_tab = cluster_notes_to_tab(tab_data, offsets)
 
 if __name__ == "__main__":

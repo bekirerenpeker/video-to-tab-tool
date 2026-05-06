@@ -8,7 +8,15 @@ import re
 
 # NOTE: Set your Tesseract path before initializing the pool if needed
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-DEBUG = True
+DEBUG = False
+
+LOOKALIKES = {
+    '0': ['O','o','Q', 'U'],
+    '1': ['I', 'l', '41'],
+    '2': ['Z', 'z', '?'],
+    '6': ['b'],
+    '8': ['B']
+}
 
 class TesseractThreadPool:
     """
@@ -18,21 +26,14 @@ class TesseractThreadPool:
     def __init__(self, pool_size=4):
         # PSM 13: Raw line mode. Better for 1-2 digits than PSM 10 (Single Char).
         # PSM 7 (Single line) is also a strong alternative if 13 struggles.
-        self.config = r'--psm 13 -c tessedit_char_whitelist=0123456789X<()>OoQU'
+        self.config = r'--psm 13'
         self.engine_pool = Queue()
         self.pool_size = pool_size
-
-        # Initialize individual engine handles. These handle the connection 
-        # to the Tesseract binary separately to avoid crashes.
-        for _ in range(pool_size):
-            # We must pass the config during initialization for some Tesseract APIs
-            self.engine_pool.put(self.config)
+        for _ in range(pool_size): self.engine_pool.put(self.config)
 
     def process_roi(self, roi):
         """Worker thread function: borrows an engine and OCRs the ROI."""
-        # 1. Borrow an engine config connection
         engine_config = self.engine_pool.get()
-
         best_char = ""
         best_conf = -1
 
@@ -47,20 +48,41 @@ class TesseractThreadPool:
             for j in range(len(data['text'])):
                 text = data['text'][j].strip()
                 if text:
-                    # Clean text to strictly match whitelist (prevents ghost characters)
-                    clean_text = re.sub(r'[^0123456789X<()>OoQU]', '', text)
-                    if clean_text:
-                        text_segments.append(clean_text)
-                        confidences.append(int(data['conf'][j]))
+                    text_segments.append(text)
+                    confidences.append(int(data['conf'][j]))
             
             if text_segments:
-                best_char = "".join(text_segments)
-                best_conf = int(np.mean(confidences)) # Average confidence for multi-digit
-            
-            # ocr commonly confuses 1's for 41
-            if best_char == "41": best_char = "1"
-            best_char = best_char.replace("O", "0").replace("o", "0").replace("Q", "0").replace("U", "0")
-            if best_char.isnumeric(): best_char = str(int(best_char)) # recudes multiple 0's to one 
+                raw_text = "".join(text_segments)
+                best_conf = int(np.mean(confidences))
+
+                # 1. First, check if the ENTIRE raw_text is a multi-char misread (like '41')
+                found_full_match = False
+                for target, misreads in LOOKALIKES.items():
+                    if raw_text in misreads:
+                        best_char = target
+                        found_full_match = True
+                        break
+                        
+                # 2. If no full match, check character by character
+                if not found_full_match:
+                    mapped_chars = []
+                    for char in raw_text:
+                        found_char_match = False
+                        for target, misreads in LOOKALIKES.items():
+                            if char in misreads:
+                                mapped_chars.append(target)
+                                found_char_match = True
+                                break
+                        
+                        if not found_char_match:
+                            mapped_chars.append(char)
+                    
+                    best_char = "".join(mapped_chars)
+
+                # Special case: reduce sequences of 0s if read as '00'
+                if best_char.isnumeric() and len(best_char) > 1:
+                    try: best_char = str(int(best_char))
+                    except ValueError: pass
             
             # Debugging for failed reads
             if best_char == "4" and DEBUG:
