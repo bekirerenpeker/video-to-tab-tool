@@ -27,7 +27,8 @@ def convert_to_seconds(time_str):
 
 def main():
     print("--- Guitar Tab Extractor CLI ---")
-    # commented out for safety
+
+    print("Cleaning up previous data...")
     cleanup_previous_data()
     
     url = input("YouTube URL: ")

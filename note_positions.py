@@ -36,7 +36,7 @@ def detect_and_remove_hammer_ons_pull_offs(frame, string_y_positions):
 
             if len(residuals) > 0:
                 mse = residuals[0] / len(x_pts)
-                if mse > 7.0: return None
+                if mse > 10.0: return None
             
             orientation = "up" if a < 0 else "down"
             
@@ -58,24 +58,27 @@ def detect_and_remove_hammer_ons_pull_offs(frame, string_y_positions):
     arches_data = [e for e in [get_arch_data(c) for c in contours] if e != None]
     cv2.drawContours(frame, [cd["contour"] for cd in arches_data], -1, (0, 0, 0), 6)
 
+    avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
     string_y_positions = np.array(string_y_positions)
     hopo_data = [[] for _ in range(6)]
     for data in arches_data:
-            x, y, w, h = data["bbox"]
-            center_x = x + (w // 2)
-            center_y = y + (h // 2)
-            orientation = data["orientation"]
+        x, y, w, h = data["bbox"]
+        center_x = x + (w // 2)
+        center_y = y + (h // 2)
+        orientation = data["orientation"]
+        str_idx = -1
 
-            if orientation == "up":
-                valid_indices = np.where(string_y_positions < center_y)[0]
-                if len(valid_indices) > 0:
-                    idx = valid_indices[np.argmax(string_y_positions[valid_indices])]
-                    hopo_data[idx].append((center_x, data["bbox"], data["orientation"]))
-            else: 
-                valid_indices = np.where(string_y_positions > center_y)[0]
-                if len(valid_indices) > 0:
-                    idx = valid_indices[np.argmin(string_y_positions[valid_indices])]
-                    hopo_data[idx].append((center_x, data["bbox"], data["orientation"]))
+        if orientation == "up":
+            valid_indices = np.where(string_y_positions < center_y)[0]
+            if len(valid_indices) > 0:
+                str_idx = valid_indices[np.argmax(string_y_positions[valid_indices])]
+        else: 
+            valid_indices = np.where(string_y_positions > center_y)[0]
+            if len(valid_indices) > 0:
+                str_idx = valid_indices[np.argmin(string_y_positions[valid_indices])]
+        
+        if str_idx == -1 or abs(string_y_positions[str_idx] - center_y) > avg_spacing * 1.5: continue
+        hopo_data[str_idx].append((center_x, data["bbox"], data["orientation"]))
 
     return hopo_data
    
@@ -106,10 +109,8 @@ def preprocess_for_numbers(frame, avg_spacing):
     if DEBUG: cv2.imwrite("debug_density/02_cleaned_gray_noise.png", processed)
 
     # REMOVE VERTICAL BARS
-    processed, detected_bars = remove_vertical_bars(processed, avg_spacing)
-    if DEBUG:
-        cv2.imwrite("debug_density/03_bars_removed.png", processed)
-        # cv2.imwrite("debug_density/03_only_bars.png", detected_bars)
+    processed, _ = remove_vertical_bars(processed, avg_spacing)
+    if DEBUG: cv2.imwrite("debug_density/03_bars_removed.png", processed)
 
     # BOLD THE NUMBERS SLIGHTLY TO ENSURE '0' AND '8' STAY CONNECTED
     dilation_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
