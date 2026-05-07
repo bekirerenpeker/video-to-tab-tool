@@ -6,7 +6,7 @@ import os
 import cv2
 
 # doesn't go to the next frame until the user presses space
-DEBUG=False
+DEBUG=True
 
 def merge_notes_and_articulations(notes, arches, slides, bars):
     merged_notes = notes[:]
