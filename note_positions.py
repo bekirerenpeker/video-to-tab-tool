@@ -1,9 +1,9 @@
+from articulations import detect_and_remove_hammer_ons_pull_offs, detect_and_remove_slides
 from template_remover import remove_all_templates
 import numpy as np
 import cv2
 import os
 import random
-
 DEBUG=True
 
 def remove_vertical_bars(thresh_img, avg_spacing, height_multiplier=2.2):
@@ -19,126 +19,6 @@ def remove_vertical_bars(thresh_img, avg_spacing, height_multiplier=2.2):
     
     clean_img = cv2.subtract(thresh_img, detected_bars)
     return clean_img, detected_bars
-
-def detect_and_remove_hammer_ons_pull_offs(frame, string_y_positions):
-    def get_arch_data(contour, min_width=15):
-        pts = contour.reshape(-1, 2)
-        x_pts = pts[:, 0].astype(float)
-        y_pts = pts[:, 1].astype(float)
-
-        if len(x_pts) < 10: return None
-        width = np.max(x_pts) - np.min(x_pts)
-        if width < min_width: return None
-
-        try:
-            coeffs, residuals, rank, _, _ = np.polyfit(x_pts, y_pts, 2, full=True)
-            a, b, c = coeffs
-
-            if len(residuals) > 0:
-                mse = residuals[0] / len(x_pts)
-                if mse > 10.0: return None
-            
-            orientation = "up" if a < 0 else "down"
-            
-            return {
-                "bbox": cv2.boundingRect(contour),
-                "contour": contour,
-                "orientation": orientation
-            }
-
-        except Exception as e:
-            print(f"Fit error: {e}")
-            return None 
-
-    # enlarge the shapes horzontally so the shapes always connect
-    heal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 2))
-    healed = cv2.dilate(frame.copy(), heal_kernel, iterations=1)
-    contours, _ = cv2.findContours(healed, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
-
-    arches_data = [e for e in [get_arch_data(c) for c in contours] if e != None]
-    cv2.drawContours(frame, [cd["contour"] for cd in arches_data], -1, (0, 0, 0), 6)
-
-    avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
-    string_y_positions = np.array(string_y_positions)
-    hopo_data = [[] for _ in range(6)]
-    for data in arches_data:
-        x, y, w, h = data["bbox"]
-        center_x = x + (w // 2)
-        center_y = y + (h // 2)
-        orientation = data["orientation"]
-        str_idx = -1
-
-        if orientation == "up":
-            valid_indices = np.where(string_y_positions < center_y)[0]
-            if len(valid_indices) > 0:
-                str_idx = valid_indices[np.argmax(string_y_positions[valid_indices])]
-        else: 
-            valid_indices = np.where(string_y_positions > center_y)[0]
-            if len(valid_indices) > 0:
-                str_idx = valid_indices[np.argmin(string_y_positions[valid_indices])]
-        
-        if str_idx == -1 or abs(string_y_positions[str_idx] - center_y) > avg_spacing * 1.5: continue
-        hopo_data[str_idx].append((center_x, data["bbox"], data["orientation"]))
-
-    return hopo_data
-
-def detect_and_remove_slides(frame, string_y_positions):
-    def get_line_data(contour, min_width=7, min_height=7):
-        pts = contour.reshape(-1, 2)
-        x_pts = pts[:, 0].astype(float)
-        y_pts = pts[:, 1].astype(float)
-
-        if len(x_pts) < 5: return None
-        width = np.max(x_pts) - np.min(x_pts)
-        height = np.max(y_pts) - np.min(y_pts)
-        if width < min_width or height < min_height: return None
-        
-        try:
-            coeffs, residuals, _, _, _ = np.polyfit(x_pts, y_pts, 1, full=True)
-
-            slope = coeffs[0]
-            #if abs(slope) < 0.3 or abs(slope) > 3.0: return None
-
-            if len(residuals) > 0:
-                mse = residuals[0] / len(x_pts)
-                if mse > 5: return None
-            
-            return {
-                "contour": contour,
-                "bbox": cv2.boundingRect(contour),
-                "orientation": "up" if slope < 0 else "down",
-            }
-        except:
-            return None
-
-    heal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
-    healed = cv2.dilate(frame.copy(), heal_kernel, iterations=1)
-    contours, _ = cv2.findContours(healed, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
-    lines_data = [e for e in [get_line_data(c) for c in contours] if e != None]
-    cv2.drawContours(frame, [ld["contour"] for ld in lines_data], -1, (0, 0, 0), 4)
-
-    avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
-    string_y_positions = np.array(string_y_positions)
-    slides = [[] for _ in range(6)]
-    for data in lines_data:
-        x, y, w, h = data["bbox"]
-        center_x, center_y = x + (w // 2), y + (h // 2)
-        orientation = data["orientation"]
-        distances = np.abs(center_y - np.array(string_y_positions))
-        min_dist = np.min(distances)
-        if min_dist > avg_spacing * 0.3: continue 
-        closest_string_index = distances.argmin()
-        slides[closest_string_index].append((center_x, (x, y, w, h), orientation))
-    
-    debug_frame = healed.copy()
-    debug_frame = cv2.cvtColor(debug_frame, cv2.COLOR_GRAY2BGR)
-    for i, cnt in enumerate([ld["contour"] for ld in lines_data]):
-        color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-        cv2.drawContours(debug_frame, cnt, -1, color, 2)
-    cv2.imshow("Slides", debug_frame)
-    #cv2.waitKey(0)
-    
-    return slides
 
 def preprocess_for_numbers(frame, avg_spacing):
     if DEBUG and not (os.listdir("debug_density") if os.path.exists("debug_density") else os.makedirs("debug_density")):
