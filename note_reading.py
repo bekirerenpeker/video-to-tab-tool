@@ -1,3 +1,4 @@
+import time
 from export import read_list, export_raw_frames_visual, save_raw_tab_data
 from note_positions import detect_notes
 from ocr import debug_and_recognize_characters_threaded

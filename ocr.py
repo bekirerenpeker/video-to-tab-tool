@@ -9,6 +9,7 @@ import re
 
 # NOTE: Set your Tesseract path before initializing the pool if needed
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+SKIP_OCR = True
 DEBUG = False
 
 LOOKALIKES = {
@@ -35,6 +36,8 @@ class TesseractThreadPool:
         for _ in range(pool_size): self.engine_pool.put(self.config)
 
     def process_roi(self, roi):
+        if SKIP_OCR: return "N", 100
+
         """Worker thread function: borrows an engine and OCRs the ROI."""
         engine_config = self.engine_pool.get()
         best_char = ""

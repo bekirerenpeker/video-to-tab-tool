@@ -2,13 +2,13 @@ import numpy as np
 import cv2
 import random
 
-DEBUG=True
+DEBUG=False
 
 def detect_and_remove_vertical_bars(frame, string_y_positions):
     import random
     
     avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
-    heal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 5))
+    heal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 5))
     healed = cv2.dilate(frame.copy(), heal_kernel, iterations=1)
 
     # ISOLATION: Destroy crossing lines, arches, and digits
@@ -20,27 +20,23 @@ def detect_and_remove_vertical_bars(frame, string_y_positions):
     contours, _ = cv2.findContours(vertical_spines, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     only_bars = []
-    bars_to_erase = []
 
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
+        if w < avg_spacing * 0.12: only_bars.append((x, y, w, h))
 
-        if w < avg_spacing * 1.2:
-            bars_to_erase.append((x, y, w, h))
-            if w < avg_spacing * 0.4: only_bars.append(x + (w // 2))
-
-    padding = int(avg_spacing * 0.1)
-    for (x, y, w, h) in bars_to_erase:
-        cv2.rectangle(frame, (x - padding, y - padding), (x + w + padding, y + h + padding), (0, 0, 0), -1)
+    p = int(avg_spacing * 0.2)
+    for x, y, w, h in only_bars:
+        cv2.rectangle(frame, (x - p, y - p), (x + w + p, y + h + p), (0, 0, 0), -1)
 
     if DEBUG:
-        debug_frame = cv2.cvtColor(vertical_spines.copy(), cv2.COLOR_GRAY2BGR)
-        for (x, y, w, h) in bars_to_erase:
+        debug_frame = cv2.cvtColor(healed.copy(), cv2.COLOR_GRAY2BGR)
+        for x, y, w, h in only_bars:
             color = (random.randint(50, 255), random.randint(50, 255), random.randint(50, 255))
-            cv2.rectangle(debug_frame, (x - padding, y - padding), (x + w + padding, y + h + padding), color, 1)
+            cv2.rectangle(debug_frame, (x - p, y - p), (x + w + p, y + h + p), color, 1)
         cv2.imshow("Isolated Vertical Spines", debug_frame)
 
-    return only_bars
+    return [(x + (w // 2)) for x, y, w, h in only_bars]
 
 def get_arch_data(contour, min_width=15):
     pts = contour.reshape(-1, 2)
@@ -73,7 +69,7 @@ def get_arch_data(contour, min_width=15):
 
 def detect_and_remove_hammer_ons_pull_offs(frame, string_y_positions):
     # enlarge the shapes horzontally so the shapes always connect
-    heal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (8, 2))
+    heal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 3))
     healed = cv2.dilate(frame.copy(), heal_kernel, iterations=1)
     contours, _ = cv2.findContours(healed, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
 
@@ -98,15 +94,19 @@ def detect_and_remove_hammer_ons_pull_offs(frame, string_y_positions):
         orientation = data["orientation"]
         str_idx = -1
 
+        dist = float('inf')
         if orientation == "up":
-            valid_indices = np.where(string_y_positions < center_y - avg_spacing*0.3)[0]
+            valid_indices = np.where(string_y_positions < y)[0]
             if len(valid_indices) > 0:
                 str_idx = valid_indices[np.argmax(string_y_positions[valid_indices])]
+                dist = abs(string_y_positions[str_idx] - (y))
         else: 
-            valid_indices = np.where(string_y_positions > center_y + avg_spacing*0.3)[0]
+            valid_indices = np.where(string_y_positions > y+h)[0]
             if len(valid_indices) > 0:
                 str_idx = valid_indices[np.argmin(string_y_positions[valid_indices])]
-        
+                dist = abs(string_y_positions[str_idx] - (y+h))
+
+        if dist > (avg_spacing*1.2): continue
         if str_idx == -1 or abs(string_y_positions[str_idx] - center_y) > avg_spacing * 1.5: continue
         hopo_data[str_idx].append((center_x, data["bbox"], data["orientation"]))
 
