@@ -25,7 +25,7 @@
     {
       "path": "templates/rest_quarter.png",
       "threshold": 0.8,
-      "target_ratio": 1
+      "target_ratio": 2
     },
     {
       "path": "templates/rest_eighth.png",
@@ -36,6 +36,13 @@
       "path": "templates/rest_sixteenth.png",
       "threshold": 0.8,
       "target_ratio": 1
+    },
+
+    {
+      "path": "templates/arrow_head.png",
+      "threshold": 0.8,
+      "target_ratio": 1,
+      "mirror_vertical": true
     },
 
     {

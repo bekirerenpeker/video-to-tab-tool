@@ -1,24 +1,10 @@
-from articulations import detect_and_remove_hammer_ons_pull_offs, detect_and_remove_slides
+from articulations import detect_and_remove_hammer_ons_pull_offs, detect_and_remove_slides, detect_and_remove_vertical_bars
 from template_remover import remove_all_templates
 import numpy as np
 import cv2
 import os
 
 DEBUG=True
-
-def remove_vertical_bars(thresh_img, avg_spacing, height_multiplier=2.2):
-    pre_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 5))
-    dilated_for_detection = cv2.dilate(thresh_img, pre_kernel, iterations=1)
-
-    bar_kernel_height = int(avg_spacing * height_multiplier)
-    vertical_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, bar_kernel_height))
-    
-    detected_bars = cv2.morphologyEx(dilated_for_detection, cv2.MORPH_OPEN, vertical_kernel)
-    dilation_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 1))
-    detected_bars = cv2.dilate(detected_bars, dilation_kernel, iterations=1)
-    
-    clean_img = cv2.subtract(thresh_img, detected_bars)
-    return clean_img, detected_bars
 
 def preprocess_for_numbers(frame, avg_spacing):
     if DEBUG and not (os.listdir("debug_density") if os.path.exists("debug_density") else os.makedirs("debug_density")):
@@ -45,10 +31,6 @@ def preprocess_for_numbers(frame, avg_spacing):
     _, strict_mask = cv2.threshold(processed, 150, 255, cv2.THRESH_BINARY)
     processed = cv2.bitwise_and(processed, processed, mask=strict_mask)
     if DEBUG: cv2.imwrite("debug_density/02_cleaned_gray_noise.png", processed)
-
-    # REMOVE VERTICAL BARS
-    processed, _ = remove_vertical_bars(processed, avg_spacing)
-    if DEBUG: cv2.imwrite("debug_density/03_bars_removed.png", processed)
 
     return processed
 
@@ -146,9 +128,13 @@ def merge_close_points(notes, min_dist=5):
 def detect_notes(frame, string_y_positions):
     avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
     processed = preprocess_for_numbers(frame, avg_spacing)
+    bars = detect_and_remove_vertical_bars(processed, string_y_positions)
+
     arches = detect_and_remove_hammer_ons_pull_offs(processed, string_y_positions)
     slides = detect_and_remove_slides(processed, string_y_positions)
+
     bboxes = detect_shape_bboxes(processed)
     notes = map_shapes_to_strings(bboxes, string_y_positions)
     merged_notes = merge_close_points(notes)
-    return merged_notes, arches, slides
+
+    return merged_notes, arches, slides, bars

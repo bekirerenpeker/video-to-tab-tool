@@ -43,26 +43,33 @@ def cluster_notes_to_tab(all_frames, offsets):
             raw_frets = [str(p[2]) for p in pts]
             
             processed_symbols = []
-            symbol_counts = {'<': 0, '>': 0, '(': 0, ')': 0, 'X': 0, '2': 0, '0': 0}
-            
+            harmonic_votes = 0
+            ghost_votes = 0
             for f in raw_frets:
-                digit_match = "".join(filter(str.isdigit, f))
-                if digit_match: processed_symbols.append(digit_match)
-                elif 'X' in f.upper(): processed_symbols.append('X')
-                elif 'h' in f: processed_symbols.append('h')
-                elif 'p' in f: processed_symbols.append('p')
-                elif '/' in f: processed_symbols.append('/')
-                elif '\\' in f: processed_symbols.append('\\')
+                if '<' in f and '>' in f and any(char.isdigit() for char in f): harmonic_votes += 1
+                if '(' in f and ')' in f and any(char.isdigit() for char in f): ghost_votes += 1
 
-                # 2. Count Symbol Occurrences
-                for char in symbol_counts.keys():
-                    if char in f: symbol_counts[char] += 1
+                if label == -1: continue
+                cluster_indices = np.where(labels == label)[0]
+                pts = [string_points[i] for i in cluster_indices]
 
+                num_frames = len(set(p[3] for p in pts))
+                raw_frets = [str(p[2]) for p in pts]
+
+                processed_symbols = []
+                for f in raw_frets:
+                    digit_match = "".join(filter(str.isdigit, f))
+                    if digit_match: processed_symbols.append(digit_match)
+                    elif 'X' in f.upper(): processed_symbols.append('X')
+                    elif 'h' in f: processed_symbols.append('h')
+                    elif 'p' in f: processed_symbols.append('p')
+                    elif '/' in f: processed_symbols.append('/')
+                    elif '\\' in f: processed_symbols.append('\\')
+                    elif '|' in f: processed_symbols.append('|')
+                
             # --- HEURISTIC: When to apply symbols ---
-            h_tresh = 0.5 if symbol_counts['2'] > 0 else 0.4
-            g_tresh = 0.5 if symbol_counts['0'] > 0 else 0.4
-            is_harmonic = (symbol_counts['<'] + symbol_counts['>']) / num_frames >= h_tresh
-            is_ghost = (symbol_counts['('] + symbol_counts[')']) / num_frames >= g_tresh
+            is_harmonic = (harmonic_votes >= 1)
+            is_ghost = (ghost_votes >= 1)
 
             # --- VALIDATION & CONSENSUS ---
             is_valid_note = num_frames > 1 or len(processed_symbols) > 0

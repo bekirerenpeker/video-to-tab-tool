@@ -4,6 +4,15 @@ import random
 
 DEBUG = False
 
+def get_bar_data(contour, avg_spacing):
+    x, y, w, h = cv2.boundingRect(contour)
+    x_pos = x + (w // 2)
+
+    if h < avg_spacing * 2.5: return None
+    if w > avg_spacing * 0.4: return None
+
+    return (x_pos, (x, y, w, h), contour)
+
 def get_arch_data(contour, min_width=15):
     pts = contour.reshape(-1, 2)
     x_pts = pts[:, 0].astype(float)
@@ -60,6 +69,33 @@ def get_line_data(contour, min_width=7, min_height=7):
         }
     except:
         return None
+
+def detect_and_remove_vertical_bars(frame, string_y_positions):
+    import random
+    heal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 5))
+    healed = cv2.dilate(frame.copy(), heal_kernel, iterations=1)
+    contours, _ = cv2.findContours(healed, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+
+    avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
+    bars = [e for e in [get_bar_data(c, avg_spacing) for c in contours] if e != None]
+    cv2.drawContours(frame, [e[2] for e in bars], -1, (0, 0, 0), -1)
+
+    if DEBUG:
+        debug_frame = healed.copy()
+        debug_frame = cv2.cvtColor(debug_frame, cv2.COLOR_GRAY2BGR)
+        for cnt in [bar[2] for bar in bars]:
+            color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+            cv2.drawContours(debug_frame, cnt, -1, color, 2)
+        cv2.imshow("Vertical Bars", debug_frame)
+
+    # only return bars (not arpeggio and stroke notes)
+    only_bars = []
+    for x_pos, (x,y,w,h), _ in bars:
+        if h < avg_spacing * 4.6: continue
+        if w > avg_spacing * 0.3: continue
+        only_bars.append(x_pos)
+            
+    return only_bars
 
 def detect_and_remove_hammer_ons_pull_offs(frame, string_y_positions):
     # enlarge the shapes horzontally so the shapes always connect

@@ -8,6 +8,27 @@ import cv2
 # doesn't go to the next frame until the user presses space
 DEBUG=False
 
+def merge_notes_and_articulations(notes, arches, slides, bars):
+    merged_notes = notes[:]
+
+    for s_idx in range(6):
+        string_arches = arches[s_idx]
+        string_slides = slides[s_idx]
+
+        for center_x, bbox, orientation in string_arches:
+            symbol = "h" if orientation == "up" else "p"
+            merged_notes[s_idx].append((center_x, symbol))
+
+        for center_x, bbox, orientation in string_slides:
+            symbol = "/" if orientation == "up" else "\\"
+            merged_notes[s_idx].append((center_x, symbol))
+
+    for bar_x_pos in bars:
+        for i in range(6):
+            merged_notes[i].append((bar_x_pos, "|"))
+
+    return [sorted(string_notes, key=lambda n: n[0]) for string_notes in merged_notes]
+
 def read_notes(folder, string_y_positions):
     tab_data = []
     all_frames = sorted([f for f in os.listdir(folder) if f.endswith('.png')])
@@ -18,7 +39,7 @@ def read_notes(folder, string_y_positions):
         frame = cv2.imread(img_path)
         if frame is None: continue
 
-        note_positions, arches, slides = detect_notes(frame, string_y_positions)
+        note_positions, arches, slides, bars = detect_notes(frame, string_y_positions)
         
         notes, debug_frame = debug_and_recognize_characters_threaded(
             frame, 
@@ -27,20 +48,7 @@ def read_notes(folder, string_y_positions):
             min_confidence=30
         )
 
-        for s_idx in range(6):
-            string_arches = arches[s_idx]
-            string_slides = slides[s_idx]
-
-            for center_x, bbox, orientation in string_arches:
-                symbol = "h" if orientation == "up" else "p"
-                notes[s_idx].append((center_x, symbol))
-
-            for center_x, bbox, orientation in string_slides:
-                symbol = "/" if orientation == "up" else "\\"
-                notes[s_idx].append((center_x, symbol))
-
-            notes[s_idx].sort(key=lambda n: n[0])
-            
+        notes = merge_notes_and_articulations(notes, arches, slides, bars)
         tab_data.append(notes)
         draw_progress_bar(idx / total_frames, prefix=f"[{idx+1}/{total_frames}] Processed")
         
@@ -53,6 +61,8 @@ def read_notes(folder, string_y_positions):
             for center_x, bbox, orientation in slides[i]:
                 color = (255, 0, 0) if orientation == "up" else (255, 255, 0)
                 cv2.rectangle(debug_frame, (bbox[0], bbox[1]), (bbox[0]+bbox[2], bbox[1]+bbox[3]), color, 1)
+            for bar_x_pos in bars:
+                cv2.line(debug_frame, (bar_x_pos, 0), (bar_x_pos, frame.shape[0]), (255, 0, 255), 1)
 
         cv2.imshow("Threaded Debug", debug_frame)
 
