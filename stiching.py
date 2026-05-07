@@ -51,6 +51,8 @@ def cluster_notes_to_tab(all_frames, offsets):
                 elif 'X' in f.upper(): processed_symbols.append('X')
                 elif 'h' in f: processed_symbols.append('h')
                 elif 'p' in f: processed_symbols.append('p')
+                elif '/' in f: processed_symbols.append('/')
+                elif '\\' in f: processed_symbols.append('\\')
 
                 # 2. Count Symbol Occurrences
                 for char in symbol_counts.keys():
