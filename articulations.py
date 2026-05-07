@@ -91,7 +91,7 @@ def detect_and_remove_vertical_bars(frame, string_y_positions):
     # only return bars (not arpeggio and stroke notes)
     only_bars = []
     for x_pos, (x,y,w,h), _ in bars:
-        if h < avg_spacing * 4.6: continue
+        if h < avg_spacing * 4.8: continue
         if w > avg_spacing * 0.3: continue
         only_bars.append(x_pos)
             
@@ -125,11 +125,11 @@ def detect_and_remove_hammer_ons_pull_offs(frame, string_y_positions):
         str_idx = -1
 
         if orientation == "up":
-            valid_indices = np.where(string_y_positions < center_y)[0]
+            valid_indices = np.where(string_y_positions < center_y - avg_spacing*0.3)[0]
             if len(valid_indices) > 0:
                 str_idx = valid_indices[np.argmax(string_y_positions[valid_indices])]
         else: 
-            valid_indices = np.where(string_y_positions > center_y)[0]
+            valid_indices = np.where(string_y_positions > center_y + avg_spacing*0.3)[0]
             if len(valid_indices) > 0:
                 str_idx = valid_indices[np.argmin(string_y_positions[valid_indices])]
         

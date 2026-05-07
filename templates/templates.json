@@ -41,7 +41,7 @@
     {
       "path": "templates/arrow_head.png",
       "threshold": 0.8,
-      "target_ratio": 1,
+      "target_ratio": 2,
       "mirror_vertical": true
     },
 

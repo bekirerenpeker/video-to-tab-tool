@@ -48,8 +48,8 @@ def detect_shape_bboxes(frame):
 
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
-        new_x = max(0, x - padding)
-        new_y = max(0, y - padding)
+        new_x = max(0, x-1 - padding)
+        new_y = max(0, y-1 - padding)
         new_w = min(img_w - new_x, w + 2 * padding)
         new_h = min(img_h - new_y, h + 2 * padding)
         bboxes.append((new_x, new_y, new_w, new_h))
