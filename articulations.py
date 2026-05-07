@@ -7,7 +7,7 @@ DEBUG=False
 def is_arpeggio(contour, avg_spacing, frame):
     x, y, w, h = cv2.boundingRect(contour)
     if h < avg_spacing * 2.0: return False
-    if w < 2 or w > avg_spacing * 1.5: return False
+    if w < avg_spacing * 0.12 or w > avg_spacing * 1.5: return False
 
     roi = frame[y:y+h, x:x+w]
     
@@ -43,7 +43,8 @@ def detect_and_remove_arp_strokes(frame, string_y_positions):
         x, y, w, h = cv2.boundingRect(a)
         cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 0), -1)
 
-        arp_top, arp_bottom = y, y + h
+        padding = int(avg_spacing * 0.1)
+        arp_top, arp_bottom = y - padding, y + h + padding
         contained_strings = [
             i for i, s_y in enumerate(string_y_positions) 
             if s_y >= arp_top and s_y <= arp_bottom

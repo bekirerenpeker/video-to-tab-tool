@@ -7,7 +7,7 @@ import os
 import cv2
 
 # doesn't go to the next frame until the user presses space
-DEBUG=True
+DEBUG=False
 
 def merge_notes_and_articulations(notes, arches, slides, bars, arp_strokes):
     merged_notes = notes[:]
@@ -23,6 +23,10 @@ def merge_notes_and_articulations(notes, arches, slides, bars, arp_strokes):
         for center_x, bbox, orientation in string_slides:
             symbol = "/" if orientation == "up" else "\\"
             merged_notes[s_idx].append((center_x, symbol))
+        
+    for x_pos, s_idx, e_idx in arp_strokes:
+        for i in range(s_idx, e_idx + 1):
+            merged_notes[i].append((x_pos, "$"))
 
     for bar_x_pos in bars:
         for i in range(6):
@@ -65,7 +69,7 @@ def read_notes(folder, string_y_positions):
             for bar_x_pos in bars:
                 cv2.line(debug_frame, (bar_x_pos, string_y_positions[0]), (bar_x_pos, string_y_positions[5]), (255, 0, 255), 1)
             for x_pos, s_idx, e_idx in arp_strokes:
-                cv2.line(debug_frame, (x_pos, string_y_positions[s_idx]), (x_pos, string_y_positions[e_idx]), (255, 255, 0), 1)
+                cv2.line(debug_frame, (x_pos, string_y_positions[s_idx]), (x_pos, string_y_positions[e_idx]), (255, 255, 0), 2)
 
         cv2.imshow("Threaded Debug", debug_frame)
 

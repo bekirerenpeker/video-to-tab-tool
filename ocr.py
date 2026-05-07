@@ -9,13 +9,13 @@ import re
 
 # NOTE: Set your Tesseract path before initializing the pool if needed
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-SKIP_OCR = True
-DEBUG = False
+SKIP_OCR = False
 
 LOOKALIKES = {
     "0": ["O","o","Q", "U", "e)", "ce"],
     "1": ["I", "l", "41"],
-    "2": ["Z", "z", "?", "22"],
+    "2": ["Z", "z", "22"],
+    "5": ["?"],
     "6": ["b"],
     "7": ["C", "t", "A"],
     "8": ["B", "&"],
@@ -89,11 +89,6 @@ class TesseractThreadPool:
                 if best_char.isnumeric() and len(best_char) > 1:
                     try: best_char = str(int(best_char))
                     except ValueError: pass
-            
-            # Debugging for failed reads
-            if DEBUG and best_char == "4":
-                if not os.path.exists("debug_ocr"): os.makedirs("debug_ocr")
-                cv2.imwrite(f"debug_ocr/fail_{np.random.randint(1000)}.png", roi)
         finally:
             # 3. CRUCIAL: Always return the engine to the pool, even if OCR fails
             self.engine_pool.put(engine_config)
