@@ -9,7 +9,7 @@ import cv2
 # doesn't go to the next frame until the user presses space
 DEBUG=True
 
-def merge_notes_and_articulations(notes, arches, slides, bars):
+def merge_notes_and_articulations(notes, arches, slides, bars, arp_strokes):
     merged_notes = notes[:]
 
     for s_idx in range(6):
@@ -40,7 +40,7 @@ def read_notes(folder, string_y_positions):
         frame = cv2.imread(img_path)
         if frame is None: continue
 
-        note_positions, arches, slides, bars = detect_notes(frame, string_y_positions)
+        note_positions, arches, slides, bars, arp_strokes = detect_notes(frame, string_y_positions)
         
         notes, debug_frame = debug_and_recognize_characters_threaded(
             frame, 
@@ -49,7 +49,7 @@ def read_notes(folder, string_y_positions):
             min_confidence=30
         )
 
-        notes = merge_notes_and_articulations(notes, arches, slides, bars)
+        notes = merge_notes_and_articulations(notes, arches, slides, bars, arp_strokes)
         tab_data.append(notes)
         draw_progress_bar(idx / total_frames, prefix=f"[{idx+1}/{total_frames}] Processed")
         
@@ -63,7 +63,9 @@ def read_notes(folder, string_y_positions):
                 color = (255, 0, 0) if orientation == "up" else (255, 255, 0)
                 cv2.rectangle(debug_frame, (bbox[0], bbox[1]), (bbox[0]+bbox[2], bbox[1]+bbox[3]), color, 1)
             for bar_x_pos in bars:
-                cv2.line(debug_frame, (bar_x_pos, 0), (bar_x_pos, frame.shape[0]), (255, 0, 255), 1)
+                cv2.line(debug_frame, (bar_x_pos, string_y_positions[0]), (bar_x_pos, string_y_positions[5]), (255, 0, 255), 1)
+            for x_pos, s_idx, e_idx in arp_strokes:
+                cv2.line(debug_frame, (x_pos, string_y_positions[s_idx]), (x_pos, string_y_positions[e_idx]), (255, 255, 0), 1)
 
         cv2.imshow("Threaded Debug", debug_frame)
 

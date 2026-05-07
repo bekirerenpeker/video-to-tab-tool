@@ -1,3 +1,4 @@
+from articulations import detect_and_remove_arp_strokes
 from articulations import detect_and_remove_hammer_ons_pull_offs, detect_and_remove_slides, detect_and_remove_vertical_bars
 from template_remover import remove_all_templates
 import numpy as np
@@ -28,13 +29,13 @@ def preprocess_for_numbers(frame, avg_spacing):
     if DEBUG: cv2.imwrite("debug_density/01_templates_removed.png", processed)
 
     # REMOVE GRAY VALUES (comment out if the tab doesnt have good contrast)
-    _, strict_mask = cv2.threshold(processed, 150, 255, cv2.THRESH_BINARY)
+    _, strict_mask = cv2.threshold(processed, 125, 255, cv2.THRESH_BINARY)
     processed = cv2.bitwise_and(processed, processed, mask=strict_mask)
     if DEBUG: cv2.imwrite("debug_density/02_cleaned_gray_noise.png", processed)
 
     return processed
 
-def detect_shape_bboxes(frame):
+def detect_shape_bboxes(frame, avg_spacing):
     # BOLD THE NUMBERS SLIGHTLY TO ENSURE '0' AND '8' STAY CONNECTED
     dilation_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
     processed = cv2.dilate(frame, dilation_kernel, iterations=2)
@@ -48,6 +49,7 @@ def detect_shape_bboxes(frame):
 
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
+        if w < avg_spacing * 0.3 or h < avg_spacing * 0.4: continue
         new_x = max(0, x-1 - padding)
         new_y = max(0, y-1 - padding)
         new_w = min(img_w - new_x, w + 2 * padding)
@@ -128,13 +130,14 @@ def merge_close_points(notes, min_dist=5):
 def detect_notes(frame, string_y_positions):
     avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
     processed = preprocess_for_numbers(frame, avg_spacing)
+    arp_strokes = detect_and_remove_arp_strokes(processed, string_y_positions)
     bars = detect_and_remove_vertical_bars(processed, string_y_positions)
 
     arches = detect_and_remove_hammer_ons_pull_offs(processed, string_y_positions)
     slides = detect_and_remove_slides(processed, string_y_positions)
 
-    bboxes = detect_shape_bboxes(processed)
+    bboxes = detect_shape_bboxes(processed, avg_spacing)
     notes = map_shapes_to_strings(bboxes, string_y_positions)
     merged_notes = merge_close_points(notes)
 
-    return merged_notes, arches, slides, bars
+    return merged_notes, arches, slides, bars, arp_strokes

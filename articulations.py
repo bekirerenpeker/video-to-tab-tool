@@ -4,6 +4,69 @@ import random
 
 DEBUG=False
 
+def is_arpeggio(contour, avg_spacing, frame):
+    x, y, w, h = cv2.boundingRect(contour)
+    if h < avg_spacing * 2.0: return False
+    if w < 2 or w > avg_spacing * 1.5: return False
+
+    roi = frame[y:y+h, x:x+w]
+    
+    # Find the average X-pixel for every row
+    centers = []
+    for row in roi:
+        on_pixels = np.where(row > 0)[0]
+        if len(on_pixels) > 0: centers.append(np.mean(on_pixels))
+    
+    # Smooth the signal slightly to ignore tiny pixel jitters
+    window = 3
+    smoothed_centers = np.convolve(centers, np.ones(window)/window, mode='valid')
+    
+    local_avg = np.mean(smoothed_centers)
+    crossings = 0
+    for i in range(1, len(smoothed_centers)):
+        if (smoothed_centers[i-1] < local_avg and smoothed_centers[i] >= local_avg) or \
+        (smoothed_centers[i-1] > local_avg and smoothed_centers[i] <= local_avg):
+            crossings += 1
+
+    return crossings >= 4 and (crossings / len(centers)) >= 0.13
+
+def detect_and_remove_arp_strokes(frame, string_y_positions):
+    heal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 2))
+    healed = cv2.dilate(frame.copy(), heal_kernel, iterations=1)
+    contours, _ = cv2.findContours(healed, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+
+    avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
+    arps = [e for e in contours if is_arpeggio(e, avg_spacing, frame)]
+
+    arps_data = []
+    for a in arps:
+        x, y, w, h = cv2.boundingRect(a)
+        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 0), -1)
+
+        arp_top, arp_bottom = y, y + h
+        contained_strings = [
+            i for i, s_y in enumerate(string_y_positions) 
+            if s_y >= arp_top and s_y <= arp_bottom
+        ]
+        if contained_strings:
+            top_string_idx = min(contained_strings)
+            bottom_string_idx = max(contained_strings)
+        else: # Fallback: If it's too small to contain a string, use the single closest
+            top_string_idx = min(range(len(string_y_positions)), key=lambda i: abs(string_y_positions[i] - arp_top))
+            bottom_string_idx = top_string_idx
+
+        arps_data.append((x + (w//2), top_string_idx, bottom_string_idx))
+
+    if DEBUG:
+        debug_frame = healed.copy()
+        debug_frame = cv2.cvtColor(debug_frame, cv2.COLOR_GRAY2BGR)
+        for c in arps:
+            color = (random.randint(50, 255), random.randint(50, 255), random.randint(50, 255))
+            cv2.drawContours(debug_frame, [c], -1, color, 1)
+        cv2.imshow("Arpeggio Strokes", debug_frame)
+    
+    return arps_data
+
 def detect_and_remove_vertical_bars(frame, string_y_positions):
     import random
     
@@ -38,14 +101,14 @@ def detect_and_remove_vertical_bars(frame, string_y_positions):
 
     return [(x + (w // 2)) for x, y, w, h in only_bars]
 
-def get_arch_data(contour, min_width=15):
+def get_arch_data(contour, avg_spacing):
     pts = contour.reshape(-1, 2)
     x_pts = pts[:, 0].astype(float)
     y_pts = pts[:, 1].astype(float)
 
     if len(x_pts) < 10: return None
     width = np.max(x_pts) - np.min(x_pts)
-    if width < min_width: return None
+    if width < avg_spacing * 1.2: return None
 
     try:
         coeffs, residuals, rank, _, _ = np.polyfit(x_pts, y_pts, 2, full=True)
@@ -73,7 +136,8 @@ def detect_and_remove_hammer_ons_pull_offs(frame, string_y_positions):
     healed = cv2.dilate(frame.copy(), heal_kernel, iterations=1)
     contours, _ = cv2.findContours(healed, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
 
-    arches_data = [e for e in [get_arch_data(c) for c in contours] if e != None]
+    avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
+    arches_data = [e for e in [get_arch_data(c, avg_spacing) for c in contours] if e != None]
     cv2.drawContours(frame, [cd["contour"] for cd in arches_data], -1, (0, 0, 0), 6)
 
     if DEBUG:
@@ -84,7 +148,6 @@ def detect_and_remove_hammer_ons_pull_offs(frame, string_y_positions):
             cv2.drawContours(debug_frame, cnt, -1, color, 2)
         cv2.imshow("Hammer On / Pull Off", debug_frame)
 
-    avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
     string_y_positions = np.array(string_y_positions)
     hopo_data = [[] for _ in range(6)]
     for data in arches_data:
