@@ -5,7 +5,8 @@ from terminal_utils import draw_progress_bar
 import os
 import cv2
 
-DEBUG=True
+# doesn't go to the next frame until the user presses space
+DEBUG=False
 
 def read_notes(folder, string_y_positions):
     tab_data = []

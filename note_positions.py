@@ -3,7 +3,7 @@ from template_remover import remove_all_templates
 import numpy as np
 import cv2
 import os
-import random
+
 DEBUG=True
 
 def remove_vertical_bars(thresh_img, avg_spacing, height_multiplier=2.2):

@@ -30,7 +30,7 @@ def cluster_notes_to_tab(all_frames, offsets):
         
         # Use a slightly larger epsilon to bridge small alignment gaps
         # Lower min_samples to 1 to stop deleting unique detections
-        clustering = DBSCAN(eps=12, min_samples=1).fit(data)
+        clustering = DBSCAN(eps=7, min_samples=1).fit(data)
         labels = clustering.labels_
         
         for label in set(labels):

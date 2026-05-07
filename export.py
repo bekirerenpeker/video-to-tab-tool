@@ -127,7 +127,7 @@ def export_stitched_tab_visual(
     final_tab, 
     filename=os.path.join("output", "stitched_tab.txt"), 
     max_line_length=180, 
-    spacing_ratio=0.1,
+    spacing_ratio=0.2,
     padding=3
 ):
     """
@@ -140,43 +140,61 @@ def export_stitched_tab_visual(
     """
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     
-    # 1. Sort and group notes into columns (chords) by X coordinate
+    # 1. Sort by X
     final_tab.sort(key=lambda n: n['x'])
+    
     columns = []
     if final_tab:
         current_col = [final_tab[0]]
+        # Keep track of which strings are already used in the current column
+        used_strings = {final_tab[0]['string']}
+        
         for i in range(1, len(final_tab)):
-            if final_tab[i]['x'] - current_col[-1]['x'] <= 10:
-                current_col.append(final_tab[i])
+            note = final_tab[i]
+            x_dist = note['x'] - current_col[-1]['x']
+            
+            # CONDITION: Merge into column ONLY if:
+            # 1. The X distance is very small (chord)
+            # 2. AND the string isn't already taken (no horizontal overlap)
+            if x_dist <= 8 and note['string'] not in used_strings:
+                current_col.append(note)
+                used_strings.add(note['string'])
             else:
+                # Force a new column
                 columns.append(current_col)
-                current_col = [final_tab[i]]
+                current_col = [note]
+                used_strings = {note['string']}
         columns.append(current_col)
 
-    # 2. Build the tab buffers with spacing and internal padding
-    # Each string starts with a pipe and the left padding
+    # 2. Build the tab buffers
     pad_str = "-" * padding
     full_strings = [["|" + pad_str] for _ in range(6)]
+    
+    # Start last_x from the first note's position minus a small buffer
+    # so the first note doesn't have a massive gap from the pipe
     last_x = columns[0][0]['x'] if columns else 0
     
     for col in columns:
         current_x = col[0]['x']
-        # Calculate horizontal distance[cite: 1]
         dist = current_x - last_x
+        
+        # Calculate dashes based on distance, but ensure at least 1 
+        # dash between separate columns so they don't touch
         num_dashes = max(1, int(dist * spacing_ratio))
         
         for s_idx in range(6):
             full_strings[s_idx].append("-" * num_dashes)
         
-        # Place the notes/chords (keeping 'N' values per request)
-        notes_in_col = {n['string']: str(n['fret']) for n in col}
+        # Determine the width needed for this column (e.g., "12" needs 2 chars)
         max_fret_w = max(len(str(n['fret'])) for n in col)
+        notes_in_col = {n['string']: str(n['fret']) for n in col}
         
         for s_idx in range(6):
             fret_val = notes_in_col.get(s_idx, "-")
+            # Fill with dashes to keep all strings aligned
             full_strings[s_idx].append(fret_val.ljust(max_fret_w, "-"))
             
-        last_x = current_x
+        last_x = current_x 
 
     # 3. Write with block-wrapping and right padding
     with open(filename, "w") as f:

@@ -70,12 +70,13 @@ def detect_and_remove_hammer_ons_pull_offs(frame, string_y_positions):
     arches_data = [e for e in [get_arch_data(c) for c in contours] if e != None]
     cv2.drawContours(frame, [cd["contour"] for cd in arches_data], -1, (0, 0, 0), 6)
 
-    debug_frame = healed.copy()
-    debug_frame = cv2.cvtColor(debug_frame, cv2.COLOR_GRAY2BGR)
-    for i, cnt in enumerate([cd["contour"] for cd in arches_data]):
-        color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-        cv2.drawContours(debug_frame, cnt, -1, color, 2)
-    cv2.imshow("Hammer On / Pull Off", debug_frame)
+    if DEBUG:
+        debug_frame = healed.copy()
+        debug_frame = cv2.cvtColor(debug_frame, cv2.COLOR_GRAY2BGR)
+        for i, cnt in enumerate([cd["contour"] for cd in arches_data]):
+            color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+            cv2.drawContours(debug_frame, cnt, -1, color, 2)
+        cv2.imshow("Hammer On / Pull Off", debug_frame)
 
     avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
     string_y_positions = np.array(string_y_positions)
