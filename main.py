@@ -25,6 +25,8 @@ def convert_to_seconds(time_str):
         print(f"Invalid time format: {time_str}. Use M.SS (e.g. 1.23)")
         sys.exit(1)
 
+# TODO: instead of getting the returns of these steps since they already save the data to files
+# update the functions so they dont take in arguments and load the data themselves this is more robust and code efficent
 def main():
     print("--- Guitar Tab Extractor CLI ---")
 

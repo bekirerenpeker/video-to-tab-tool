@@ -4,6 +4,9 @@ import json
 
 DEBUG = False
 
+# TODO: save the removed templates so that we can add them to the final tab in ascii
+# every template can have a ascii art to be added in the final tab
+
 def remove_single_template(processed_img, template_path, avg_spacing, target_ratio, threshold, mirror_vertical):
     template = cv2.imread(template_path, cv2.IMREAD_GRAYSCALE)
     if template is None: return processed_img

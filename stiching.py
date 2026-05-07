@@ -6,6 +6,9 @@ import cv2
 
 DEBUG = True
 
+# TODO: refactor this code so that it works better and more correctly with the new note detection updates
+# also add more detection edge cases for articulations
+
 def cluster_notes_to_tab(all_frames, offsets):
     global_points = []
     current_offset = 0

@@ -11,6 +11,7 @@ import re
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 SKIP_OCR = False
 
+# TODO: optimize the ocr so that it runs faster it is curretly the bottleneck of the program
 LOOKALIKES = {
     "0": ["O","o","Q", "U", "e)", "ce"],
     "1": ["I", "l", "41"],

@@ -4,6 +4,8 @@ import random
 
 DEBUG=False
 
+# TODO: add down and up stroke detection and removal
+
 def is_arpeggio(contour, avg_spacing, frame):
     x, y, w, h = cv2.boundingRect(contour)
     if h < avg_spacing * 2.0: return False
@@ -102,6 +104,8 @@ def detect_and_remove_vertical_bars(frame, string_y_positions):
 
     return [(x + (w // 2)) for x, y, w, h in only_bars]
 
+# TODO: improve detection by checking the head (min or max point) is in the middle
+# this will reduce the false detections and wont detect the arches that are not fully showing and cut by the frame
 def get_arch_data(contour, avg_spacing):
     pts = contour.reshape(-1, 2)
     x_pts = pts[:, 0].astype(float)
@@ -204,6 +208,8 @@ def get_line_data(contour, min_width=7, min_height=7):
     except:
         return None
 
+# TODO: improve detection and achive better seperation for close slide lines and characters 
+# since they can merge easily and not be detected
 def detect_and_remove_slides(frame, string_y_positions):
     # enlarge in a cross pattern so slides are connected
     heal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))

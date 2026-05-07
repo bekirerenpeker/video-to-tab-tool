@@ -1,6 +1,8 @@
 import json, os, shutil
 import xml.etree.ElementTree as ET
 
+# TODO: refactor these functions so they have better structure and more readable
+
 def cleanup_previous_data(output_dir="output"):
     """Removes the old frames and video files if they exist."""
     if os.path.exists(output_dir): shutil.rmtree(output_dir)

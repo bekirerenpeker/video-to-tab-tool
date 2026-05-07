@@ -16,6 +16,9 @@ CONFLICT_SCORE = -50 # different notes
 NO_MATCH_SCORE = -150 # no match within radius
 OUTSIDE_BOUNDS_SCORE = 0 # note out of bounds
 
+# TODO: refactor this code since the new note reading is better and has more features
+# for example add different weights for bars, storkes, slides, hammer on, pull off etc.
+
 def find_best_match_index(string1, string2, offset, note_idx):
     best_match_idx = -1
     best_match_score = 0 # 0 for different notes 1 for same note

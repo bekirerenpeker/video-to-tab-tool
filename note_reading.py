@@ -9,6 +9,8 @@ import cv2
 # doesn't go to the next frame until the user presses space
 DEBUG=False
 
+# TODO: refactor this code so it correctly differentiates between hammer on and pull off
+# also distrubutes a hammer on or pull off in between notes if it contains them
 def merge_notes_and_articulations(notes, arches, slides, bars, arp_strokes):
     merged_notes = notes[:]
 
