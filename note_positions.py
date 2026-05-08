@@ -45,7 +45,7 @@ def detect_shape_bboxes(frame, avg_spacing):
     contours, _ = cv2.findContours(processed, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
     img_h, img_w = frame.shape[:2] 
     raw_bboxes = []
-    padding = 0
+    padding = 1
 
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
