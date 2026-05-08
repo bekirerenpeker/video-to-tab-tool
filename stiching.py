@@ -70,6 +70,7 @@ def cluster_notes_to_tab(all_frames, offsets):
                     elif '\\' in f: processed_symbols.append('\\')
                     elif '|' in f: processed_symbols.append('|')
                     elif '$' in f: processed_symbols.append('$')
+                    elif '_' in f: processed_symbols.append('_')
                 
             # --- HEURISTIC: When to apply symbols ---
             is_harmonic = (harmonic_votes >= 1)

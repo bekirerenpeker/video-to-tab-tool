@@ -37,7 +37,7 @@ class TesseractThreadPool:
         for _ in range(pool_size): self.engine_pool.put(self.config)
 
     def process_roi(self, roi):
-        if SKIP_OCR: return "N", 100
+        if SKIP_OCR: return "X", 100
 
         """Worker thread function: borrows an engine and OCRs the ROI."""
         engine_config = self.engine_pool.get()

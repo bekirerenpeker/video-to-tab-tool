@@ -1,4 +1,4 @@
-import time
+import re
 from export import read_list, export_raw_frames_visual, save_raw_tab_data
 from note_positions import detect_notes
 from ocr import debug_and_recognize_characters_threaded
@@ -9,18 +9,33 @@ import cv2
 # doesn't go to the next frame until the user presses space
 DEBUG=False
 
-# TODO: refactor this code so it correctly differentiates between hammer on and pull off
-# also distrubutes a hammer on or pull off in between notes if it contains them
-def merge_notes_and_articulations(notes, arches, slides, bars, arp_strokes):
-    merged_notes = notes[:]
+def merge_notes_and_articulations(avg_spacing, notes, arches, slides, bars, arp_strokes):
+    merged_notes = [sorted(string_notes, key=lambda n: n[0]) for string_notes in notes]
 
     for s_idx in range(6):
         string_arches = arches[s_idx]
         string_slides = slides[s_idx]
 
-        for center_x, bbox, orientation in string_arches:
-            symbol = "h" if orientation == "up" else "p"
-            merged_notes[s_idx].append((center_x, symbol))
+        for center_x, (x,y,w,h), orientation in string_arches:
+            starting_note = next((n for n in merged_notes[s_idx][::-1] if n[0] < x+5), None)
+            ending_note = next((n for n in merged_notes[s_idx] if n[0] > x+w-5), None)
+            notes_inbetween = [n for n in merged_notes[s_idx] if x+5 < n[0] < x+w-5]
+            effected_notes = [starting_note] + notes_inbetween + [ending_note]
+            if not starting_note or not ending_note or len(effected_notes) < 2: continue
+
+            if len(notes_inbetween) == 0 and w > avg_spacing*2:
+                merged_notes[s_idx].append((center_x, "_"))
+                continue
+
+            for note1, note2 in zip(effected_notes[:-1], effected_notes[1:]):
+                note1_clean = re.sub(r'\D', '', note1[1])
+                note2_clean = re.sub(r'\D', '', note2[1])
+                
+                digit1 = int(note1_clean) if note1_clean.isdigit() else 0 
+                digit2 = int(note2_clean) if note2_clean.isdigit() else 0 
+                
+                symbol = "h" if digit1 < digit2 else "p"
+                merged_notes[s_idx].append(((note1[0] + note2[0])//2, symbol))
 
         for center_x, bbox, orientation in string_slides:
             symbol = "/" if orientation == "up" else "\\"
@@ -46,6 +61,7 @@ def read_notes(folder, string_y_positions):
         frame = cv2.imread(img_path)
         if frame is None: continue
 
+        avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
         note_positions, arches, slides, bars, arp_strokes = detect_notes(frame, string_y_positions)
         
         notes, debug_frame = debug_and_recognize_characters_threaded(
@@ -55,7 +71,7 @@ def read_notes(folder, string_y_positions):
             min_confidence=30
         )
 
-        notes = merge_notes_and_articulations(notes, arches, slides, bars, arp_strokes)
+        notes = merge_notes_and_articulations(avg_spacing, notes, arches, slides, bars, arp_strokes)
         tab_data.append(notes)
         draw_progress_bar(idx / total_frames, prefix=f"[{idx+1}/{total_frames}] Processed")
         
