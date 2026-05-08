@@ -212,7 +212,7 @@ def get_line_data(contour, min_width=7, min_height=7):
 # since they can merge easily and not be detected
 def detect_and_remove_slides(frame, string_y_positions):
     # enlarge in a cross pattern so slides are connected
-    heal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+    heal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1))
     healed = cv2.dilate(frame.copy(), heal_kernel, iterations=1)
     contours, _ = cv2.findContours(healed, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
     lines_data = [e for e in [get_line_data(c) for c in contours] if e != None]

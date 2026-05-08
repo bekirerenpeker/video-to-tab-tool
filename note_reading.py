@@ -7,7 +7,7 @@ import os
 import cv2
 
 # doesn't go to the next frame until the user presses space
-DEBUG=False
+DEBUG=True
 
 def merge_notes_and_articulations(avg_spacing, notes, arches, slides, bars, arp_strokes):
     merged_notes = [sorted(string_notes, key=lambda n: n[0]) for string_notes in notes]
@@ -23,8 +23,8 @@ def merge_notes_and_articulations(avg_spacing, notes, arches, slides, bars, arp_
             effected_notes = [starting_note] + notes_inbetween + [ending_note]
             if not starting_note or not ending_note or len(effected_notes) < 2: continue
 
-            if len(notes_inbetween) == 0 and w > avg_spacing*2:
-                merged_notes[s_idx].append((center_x, "_"))
+            if len(notes_inbetween) == 0 and w > avg_spacing*3:
+                merged_notes[s_idx].append((center_x, "_")) # sustain
                 continue
 
             for note1, note2 in zip(effected_notes[:-1], effected_notes[1:]):
@@ -56,7 +56,7 @@ def read_notes(folder, string_y_positions):
     all_frames = sorted([f for f in os.listdir(folder) if f.endswith('.png')])
     total_frames = len(all_frames)
 
-    for idx, f in enumerate(all_frames):
+    for idx, f in enumerate(all_frames[32:]):
         img_path = os.path.join(folder, f)
         frame = cv2.imread(img_path)
         if frame is None: continue
@@ -82,8 +82,10 @@ def read_notes(folder, string_y_positions):
                 cv2.circle(debug_frame, (center_x, sy_pos), 2, color, 2)
                 cv2.rectangle(debug_frame, (bbox[0], bbox[1]), (bbox[0]+bbox[2], bbox[1]+bbox[3]), color, 1)
             for center_x, bbox, orientation in slides[i]:
-                color = (255, 0, 0) if orientation == "up" else (255, 255, 0)
-                cv2.rectangle(debug_frame, (bbox[0], bbox[1]), (bbox[0]+bbox[2], bbox[1]+bbox[3]), color, 1)
+                if orientation == "up":
+                    cv2.line(debug_frame, (bbox[0], bbox[1]+bbox[3]), (bbox[0]+bbox[2], bbox[1]), (0, 255, 0), 1)
+                else:
+                    cv2.line(debug_frame, (bbox[0], bbox[1]), (bbox[0]+bbox[2], bbox[1]+bbox[3]), (0, 255, 0), 1)
             for bar_x_pos in bars:
                 cv2.line(debug_frame, (bar_x_pos, string_y_positions[0]), (bar_x_pos, string_y_positions[5]), (255, 0, 255), 1)
             for x_pos, s_idx, e_idx in arp_strokes:

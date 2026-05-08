@@ -44,23 +44,55 @@ def detect_shape_bboxes(frame, avg_spacing):
 
     contours, _ = cv2.findContours(processed, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
     img_h, img_w = frame.shape[:2] 
-    padding = 1
-    bboxes = []
+    raw_bboxes = []
+    padding = 0
 
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
         if w < avg_spacing * 0.3 or h < avg_spacing * 0.4: continue
-        new_x = max(0, x-1 - padding)
-        new_y = max(0, y-1 - padding)
-        new_w = min(img_w - new_x, w + 2 * padding)
-        new_h = min(img_h - new_y, h + 2 * padding)
-        bboxes.append((new_x, new_y, new_w, new_h))
+        new_x = max(0, x - padding)
+        new_y = max(0, y - padding)
+        new_w = min(img_w - new_x, w + padding)
+        new_h = min(img_h - new_y, h + padding)
+        raw_bboxes.append((new_x, new_y, new_w, new_h))
+
+    # --- REMOVE CONTAINED BOXES ---
+    # Sort by area descending so we check larger boxes first
+    raw_bboxes.sort(key=lambda b: b[2] * b[3], reverse=True)
+    bboxes = []
+
+    for i, box_a in enumerate(raw_bboxes):
+        is_contained = False
+        ax1, ay1, aw, ah = box_a
+        ax2, ay2 = ax1 + aw, ay1 + ah
         
+        for j, box_b in enumerate(bboxes): # Check against boxes already kept
+            bx1, by1, bw, bh = box_b
+            bx2, by2 = bx1 + bw, by1 + bh
+
+            # Calculate intersection area
+            ix1 = max(ax1, bx1)
+            iy1 = max(ay1, by1)
+            ix2 = min(ax2, bx2)
+            iy2 = min(ay2, by2)
+
+            if ix2 > ix1 and iy2 > iy1:
+                intersection_area = (ix2 - ix1) * (iy2 - iy1)
+                area_a = aw * ah
+                # If more than 90% of box_a is inside box_b, it's contained
+                if intersection_area / area_a > 0.9:
+                    is_contained = True
+                    break
+        
+        if not is_contained:
+            bboxes.append(box_a)
+
     return bboxes
 
 def map_shapes_to_strings(bboxes, string_y_positions):
     avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
     notes = [[] for _ in range(6)]
+    padding = 1
 
     # split merged notes
     split = []
