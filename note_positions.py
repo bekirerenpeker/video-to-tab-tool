@@ -1,3 +1,4 @@
+from articulations import detect_and_remove_down_up_strokes
 from articulations import detect_and_remove_arp_strokes
 from articulations import detect_and_remove_hammer_ons_pull_offs, detect_and_remove_slides, detect_and_remove_vertical_bars
 from template_remover import remove_all_templates
@@ -5,15 +6,16 @@ import numpy as np
 import cv2
 import os
 
+OUTPUT_DIR = "output/debug_density"
 DEBUG=True
 
 def preprocess_for_numbers(frame, avg_spacing):
-    if DEBUG and not (os.listdir("debug_density") if os.path.exists("debug_density") else os.makedirs("debug_density")):
+    if DEBUG and not (os.listdir(OUTPUT_DIR) if os.path.exists(OUTPUT_DIR) else os.makedirs(OUTPUT_DIR)):
         pass
 
     processed = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     img_h, img_w = processed.shape
-    if DEBUG: cv2.imwrite("debug_density/0_grayscale.png", processed)
+    if DEBUG: cv2.imwrite(f"{OUTPUT_DIR}/0_grayscale.png", processed)
 
     # STANDARDIZE TO WHITE-ON-BLACK
     median_brightness = np.median(processed)
@@ -22,16 +24,16 @@ def preprocess_for_numbers(frame, avg_spacing):
     line_kernel_h = cv2.getStructuringElement(cv2.MORPH_RECT, (50, 1))
     if is_light_bg: processed = cv2.morphologyEx(processed, cv2.MORPH_BLACKHAT, line_kernel_h)
     else: processed = cv2.morphologyEx(processed, cv2.MORPH_TOPHAT, line_kernel_h)
-    if DEBUG: cv2.imwrite("debug_density/01_numbers_only.png", processed)
+    if DEBUG: cv2.imwrite(f"{OUTPUT_DIR}/01_numbers_only.png", processed)
 
     # REMOVE TEMPLATES
     processed = remove_all_templates(processed, avg_spacing)
-    if DEBUG: cv2.imwrite("debug_density/01_templates_removed.png", processed)
+    if DEBUG: cv2.imwrite(f"{OUTPUT_DIR}/01_templates_removed.png", processed)
 
     # REMOVE GRAY VALUES (comment out if the tab doesnt have good contrast)
     _, strict_mask = cv2.threshold(processed, 125, 255, cv2.THRESH_BINARY)
     processed = cv2.bitwise_and(processed, processed, mask=strict_mask)
-    if DEBUG: cv2.imwrite("debug_density/02_cleaned_gray_noise.png", processed)
+    if DEBUG: cv2.imwrite(f"{OUTPUT_DIR}/02_cleaned_gray_noise.png", processed)
 
     return processed
 
@@ -40,7 +42,7 @@ def detect_shape_bboxes(frame, avg_spacing):
     dilation_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
     processed = cv2.dilate(frame, dilation_kernel, iterations=2)
     _, processed = cv2.threshold(processed, 40, 255, cv2.THRESH_BINARY)
-    if DEBUG: cv2.imwrite("debug_density/04_bolded.png", processed)
+    if DEBUG: cv2.imwrite(f"{OUTPUT_DIR}/04_bolded.png", processed)
 
     contours, _ = cv2.findContours(processed, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
     img_h, img_w = frame.shape[:2] 
@@ -162,8 +164,10 @@ def merge_close_points(notes, min_dist=5):
 def detect_notes(frame, string_y_positions):
     avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
     processed = preprocess_for_numbers(frame, avg_spacing)
+
     arp_strokes = detect_and_remove_arp_strokes(processed, string_y_positions)
     bars = detect_and_remove_vertical_bars(processed, string_y_positions)
+    strokes = detect_and_remove_down_up_strokes(processed, string_y_positions)
 
     arches = detect_and_remove_hammer_ons_pull_offs(processed, string_y_positions)
     slides = detect_and_remove_slides(processed, string_y_positions)
@@ -172,4 +176,4 @@ def detect_notes(frame, string_y_positions):
     notes = map_shapes_to_strings(bboxes, string_y_positions)
     merged_notes = merge_close_points(notes)
 
-    return merged_notes, arches, slides, bars, arp_strokes
+    return merged_notes, arches, slides, bars, strokes, arp_strokes

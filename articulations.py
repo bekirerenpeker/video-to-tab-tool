@@ -4,12 +4,80 @@ import random
 
 DEBUG=False
 
-# TODO: add down and up stroke detection and removal
+def is_down_up_stroke(contour, avg_spacing, frame):
+    x, y, w, h = cv2.boundingRect(contour)
+    if h < avg_spacing * 1.5: return None
+    if w < avg_spacing * 0.5 or w > avg_spacing * 1.2: return None
+
+    roi = frame[y:y+h, x:x+w]
+    ext_h = int(avg_spacing)
+    if h <= 2 * ext_h: ext_h = h // 3
+
+    top_chunk = roi[0:ext_h, :]
+    bottom_chunk = roi[h-ext_h:h, :]
+    middle_chunk = roi[ext_h:h-ext_h, :]
+
+    # 3. Check for "Bar Line" (The Middle Check)
+    is_bar = False
+    if middle_chunk.size > 0:
+        mid_cnts, _ = cv2.findContours(middle_chunk, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if mid_cnts:
+            m_cnt = max(mid_cnts, key=cv2.contourArea)
+            mx, my, mw, mh = cv2.boundingRect(m_cnt)
+            if mw < avg_spacing * 0.2: is_bar = True
+
+    # 4. Density Check for Direction
+    top_density = cv2.countNonZero(top_chunk)
+    bottom_density = cv2.countNonZero(bottom_chunk)
+
+    # 5. Final Classification
+    if not is_bar: return None
+    if top_density < bottom_density * 0.6: return (contour, "up")
+    elif bottom_density < top_density * 0.6: return (contour, "down")
+
+    return None
+
+def detect_and_remove_down_up_strokes(frame, string_y_positions):
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 2))
+    healed = cv2.dilate(frame.copy(), kernel, iterations=1)
+    contours, _ = cv2.findContours(healed, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+
+    avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
+    strokes = [s for s in [is_down_up_stroke(e, avg_spacing, frame) for e in contours] if s != None]
+    cv2.drawContours(frame, [s[0] for s in strokes], -1, (0, 0, 0), -1)
+
+    strokes_data = []
+    for s in strokes:
+        x, y, w, h = cv2.boundingRect(s[0])
+        padding = int(avg_spacing * 0.1)
+        top, bottom = y - padding, y + h + padding
+        contained_strings = [
+            i for i, s_y in enumerate(string_y_positions) 
+            if s_y >= top and s_y <= bottom
+        ]
+        if contained_strings:
+            top_string_idx = min(contained_strings)
+            bottom_string_idx = max(contained_strings)
+        else: # Fallback: If it's too small to contain a string, use the single closest
+            top_string_idx = min(range(len(string_y_positions)), key=lambda i: abs(string_y_positions[i] - top))
+            bottom_string_idx = top_string_idx
+
+        strokes_data.append((x + (w//2), s[1], top_string_idx, bottom_string_idx))
+
+    if DEBUG:
+        debug_frame = healed.copy()
+        debug_frame = cv2.cvtColor(debug_frame, cv2.COLOR_GRAY2BGR)
+        for s in strokes:
+            color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+            cv2.drawContours(debug_frame, [s[0]], -1, color, 1)
+        cv2.imshow("Down Up Strokes", debug_frame)
+
+    return strokes_data
 
 def is_arpeggio(contour, avg_spacing, frame):
     x, y, w, h = cv2.boundingRect(contour)
     if h < avg_spacing * 2.0: return False
-    if w < avg_spacing * 0.12 or w > avg_spacing * 1.5: return False
+    if w < avg_spacing * 0.1 or w > avg_spacing * 0.5: return False
 
     roi = frame[y:y+h, x:x+w]
     
@@ -30,7 +98,7 @@ def is_arpeggio(contour, avg_spacing, frame):
         (smoothed_centers[i-1] > local_avg and smoothed_centers[i] <= local_avg):
             crossings += 1
 
-    return crossings >= 4 and (crossings / len(centers)) >= 0.13
+    return crossings >= 4 and (crossings / len(centers)) >= 0.14
 
 def detect_and_remove_arp_strokes(frame, string_y_positions):
     heal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 2))
@@ -89,7 +157,10 @@ def detect_and_remove_vertical_bars(frame, string_y_positions):
 
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
-        if w < avg_spacing * 0.12: only_bars.append((x, y, w, h))
+        if w > avg_spacing * 0.12: continue
+        if abs(y - string_y_positions[0]) > avg_spacing * 0.3: continue
+        if h < avg_spacing * 4.5: continue
+        only_bars.append((x, y, w, h))
 
     p = int(avg_spacing * 0.2)
     for x, y, w, h in only_bars:
@@ -121,7 +192,7 @@ def get_arch_data(contour, avg_spacing):
 
         if len(residuals) > 0:
             mse = residuals[0] / len(x_pts)
-            if mse > 10.0: return None
+            if mse > 20.0: return None
         
         orientation = "up" if a < 0 else "down"
         
@@ -137,7 +208,7 @@ def get_arch_data(contour, avg_spacing):
 
 def detect_and_remove_hammer_ons_pull_offs(frame, string_y_positions):
     # enlarge the shapes horzontally so the shapes always connect
-    heal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 3))
+    heal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (8, 2))
     healed = cv2.dilate(frame.copy(), heal_kernel, iterations=1)
     contours, _ = cv2.findContours(healed, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
 
@@ -164,12 +235,12 @@ def detect_and_remove_hammer_ons_pull_offs(frame, string_y_positions):
 
         dist = float('inf')
         if orientation == "up":
-            valid_indices = np.where(string_y_positions < y)[0]
+            valid_indices = np.where(string_y_positions < y - avg_spacing*0.1)[0]
             if len(valid_indices) > 0:
                 str_idx = valid_indices[np.argmax(string_y_positions[valid_indices])]
                 dist = abs(string_y_positions[str_idx] - (y))
         else: 
-            valid_indices = np.where(string_y_positions > y+h)[0]
+            valid_indices = np.where(string_y_positions > y+h + avg_spacing*0.1)[0]
             if len(valid_indices) > 0:
                 str_idx = valid_indices[np.argmin(string_y_positions[valid_indices])]
                 dist = abs(string_y_positions[str_idx] - (y+h))
@@ -180,7 +251,7 @@ def detect_and_remove_hammer_ons_pull_offs(frame, string_y_positions):
 
     return hopo_data
 
-def get_line_data(contour, min_width=7, min_height=7):
+def get_line_data(contour, avg_spacing):
     pts = contour.reshape(-1, 2)
     x_pts = pts[:, 0].astype(float)
     y_pts = pts[:, 1].astype(float)
@@ -188,7 +259,7 @@ def get_line_data(contour, min_width=7, min_height=7):
     if len(x_pts) < 5: return None
     width = np.max(x_pts) - np.min(x_pts)
     height = np.max(y_pts) - np.min(y_pts)
-    if width < min_width or height < min_height: return None
+    if width < avg_spacing*0.05 or height < avg_spacing*0.05: return None
     
     try:
         coeffs, residuals, _, _, _ = np.polyfit(x_pts, y_pts, 1, full=True)
@@ -198,7 +269,7 @@ def get_line_data(contour, min_width=7, min_height=7):
 
         if len(residuals) > 0:
             mse = residuals[0] / len(x_pts)
-            if mse > 5: return None
+            if mse > 3: return None
         
         return {
             "contour": contour,
@@ -215,10 +286,11 @@ def detect_and_remove_slides(frame, string_y_positions):
     heal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1))
     healed = cv2.dilate(frame.copy(), heal_kernel, iterations=1)
     contours, _ = cv2.findContours(healed, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
-    lines_data = [e for e in [get_line_data(c) for c in contours] if e != None]
-    cv2.drawContours(frame, [ld["contour"] for ld in lines_data], -1, (0, 0, 0), 4)
 
     avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
+    lines_data = [e for e in [get_line_data(c, avg_spacing) for c in contours] if e != None]
+    cv2.drawContours(frame, [ld["contour"] for ld in lines_data], -1, (0, 0, 0), 4)
+
     string_y_positions = np.array(string_y_positions)
     slides = [[] for _ in range(6)]
     for data in lines_data:

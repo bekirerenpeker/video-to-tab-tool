@@ -9,7 +9,7 @@ import cv2
 # doesn't go to the next frame until the user presses space
 DEBUG=False
 
-def merge_notes_and_articulations(avg_spacing, notes, arches, slides, bars, arp_strokes):
+def merge_notes_and_articulations(avg_spacing, notes, arches, slides, bars, strokes, arp_strokes):
     merged_notes = [sorted(string_notes, key=lambda n: n[0]) for string_notes in notes]
 
     for s_idx in range(6):
@@ -41,6 +41,11 @@ def merge_notes_and_articulations(avg_spacing, notes, arches, slides, bars, arp_
             symbol = "/" if orientation == "up" else "\\"
             merged_notes[s_idx].append((center_x, symbol))
         
+    for x_pos, dir, s_idx, e_idx in strokes:
+        symbol = "v" if dir == "up" else "^"
+        for i in range(s_idx, e_idx + 1):
+            merged_notes[i].append((x_pos, symbol))
+
     for x_pos, s_idx, e_idx in arp_strokes:
         for i in range(s_idx, e_idx + 1):
             merged_notes[i].append((x_pos, "$"))
@@ -62,7 +67,7 @@ def read_notes(folder, string_y_positions):
         if frame is None: continue
 
         avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
-        note_positions, arches, slides, bars, arp_strokes = detect_notes(frame, string_y_positions)
+        note_positions, arches, slides, bars, strokes, arp_strokes = detect_notes(frame, string_y_positions)
         
         notes, debug_frame = debug_and_recognize_characters_threaded(
             frame, 
@@ -71,7 +76,7 @@ def read_notes(folder, string_y_positions):
             min_confidence=30
         )
 
-        notes = merge_notes_and_articulations(avg_spacing, notes, arches, slides, bars, arp_strokes)
+        notes = merge_notes_and_articulations(avg_spacing, notes, arches, slides, bars, strokes, arp_strokes)
         tab_data.append(notes)
         draw_progress_bar(idx / total_frames, prefix=f"[{idx+1}/{total_frames}] Processed")
         
@@ -88,6 +93,10 @@ def read_notes(folder, string_y_positions):
                     cv2.line(debug_frame, (bbox[0], bbox[1]), (bbox[0]+bbox[2], bbox[1]+bbox[3]), (0, 255, 0), 1)
             for bar_x_pos in bars:
                 cv2.line(debug_frame, (bar_x_pos, string_y_positions[0]), (bar_x_pos, string_y_positions[5]), (255, 0, 255), 1)
+            for x_pos, direction, s_idx, e_idx in strokes:
+                s = s_idx if direction == "up" else e_idx
+                e = e_idx if direction == "up" else s_idx
+                cv2.arrowedLine(debug_frame, (x_pos, string_y_positions[s]), (x_pos, string_y_positions[e]), (0, 255, 0), 2, tipLength=0.15)
             for x_pos, s_idx, e_idx in arp_strokes:
                 cv2.line(debug_frame, (x_pos, string_y_positions[s_idx]), (x_pos, string_y_positions[e_idx]), (255, 255, 0), 2)
 

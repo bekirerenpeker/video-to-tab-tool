@@ -39,13 +39,6 @@
     },
 
     {
-      "path": "templates/arrow_head.png",
-      "threshold": 0.8,
-      "target_ratio": 2,
-      "mirror_vertical": true
-    },
-
-    {
       "path": "templates/bend_up_start.png",
       "target_ratio": 2.75,
       "mirror_vertical": true
