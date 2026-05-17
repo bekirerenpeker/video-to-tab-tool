@@ -129,8 +129,8 @@ def export_stitched_tab_visual(
     final_tab, 
     filename=os.path.join("output", "stitched_tab.txt"), 
     max_line_length=180, 
-    spacing_ratio=0.2,
-    padding=3
+    spacing_ratio=0.15,
+    padding=1
 ):
     """
     Exports final tab data with spatial spacing and side padding.

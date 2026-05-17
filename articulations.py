@@ -208,7 +208,7 @@ def get_arch_data(contour, avg_spacing):
 
 def detect_and_remove_hammer_ons_pull_offs(frame, string_y_positions):
     # enlarge the shapes horzontally so the shapes always connect
-    heal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (8, 2))
+    heal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (10, 3))
     healed = cv2.dilate(frame.copy(), heal_kernel, iterations=1)
     contours, _ = cv2.findContours(healed, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
 
@@ -235,12 +235,12 @@ def detect_and_remove_hammer_ons_pull_offs(frame, string_y_positions):
 
         dist = float('inf')
         if orientation == "up":
-            valid_indices = np.where(string_y_positions < y - avg_spacing*0.1)[0]
+            valid_indices = np.where(string_y_positions < y)[0]
             if len(valid_indices) > 0:
                 str_idx = valid_indices[np.argmax(string_y_positions[valid_indices])]
                 dist = abs(string_y_positions[str_idx] - (y))
         else: 
-            valid_indices = np.where(string_y_positions > y+h + avg_spacing*0.1)[0]
+            valid_indices = np.where(string_y_positions > y+h)[0]
             if len(valid_indices) > 0:
                 str_idx = valid_indices[np.argmin(string_y_positions[valid_indices])]
                 dist = abs(string_y_positions[str_idx] - (y+h))

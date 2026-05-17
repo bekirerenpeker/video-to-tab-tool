@@ -31,7 +31,7 @@ def preprocess_for_numbers(frame, avg_spacing):
     if DEBUG: cv2.imwrite(f"{OUTPUT_DIR}/01_templates_removed.png", processed)
 
     # REMOVE GRAY VALUES (comment out if the tab doesnt have good contrast)
-    _, strict_mask = cv2.threshold(processed, 125, 255, cv2.THRESH_BINARY)
+    _, strict_mask = cv2.threshold(processed, 140, 255, cv2.THRESH_BINARY)
     processed = cv2.bitwise_and(processed, processed, mask=strict_mask)
     if DEBUG: cv2.imwrite(f"{OUTPUT_DIR}/02_cleaned_gray_noise.png", processed)
 
