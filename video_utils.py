@@ -27,7 +27,6 @@ def download_video(url, start_time, end_time):
     # Return the expected filename
     return f"{output_name}.mp4"
 
-# TODO: optimize this function it is currently too slow
 def extract_frames(video_path, start_seconds, end_seconds, interval):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -67,19 +66,20 @@ def extract_frames(video_path, start_seconds, end_seconds, interval):
     print(f"\nExtracting from {start_seconds}s to {end_seconds}s...")
 
     while current_frame <= end_frame:
-        ret, frame = cap.read()
+        ret = cap.grab()
         if not ret: break
         
-        # Only save if we are at the interval step
         relative_frame = current_frame - start_frame
         if relative_frame % interval_frames == 0:
+            ret, frame = cap.retrieve()
+            if not ret: break
             crop = frame[y:y+h, x:x+w]
             cv2.imwrite(f"{output_folder}/frame_{saved:04d}.png", crop)
             saved += 1
         
-        # Update progress bar relative to the section, not the whole video
-        progress = min(1.0, (current_frame - start_frame) / max(1, total_to_process))
-        draw_progress_bar(progress, prefix='Extracting')
+            # Update progress bar relative to the section, not the whole video
+            progress = min(1.0, (current_frame - start_frame) / max(1, total_to_process))
+            draw_progress_bar(progress, prefix='Extracting')
         
         current_frame += 1
     
