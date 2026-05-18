@@ -1,79 +1,8 @@
-import json, os, shutil
-import xml.etree.ElementTree as ET
-
-# TODO: refactor these functions so they have better structure and more readable
-
-def cleanup_previous_data(output_dir="output"):
-    """Removes the old frames and video files if they exist."""
-    if os.path.exists(output_dir): shutil.rmtree(output_dir)
-    os.makedirs(output_dir, exist_ok=True)
-
-def import_raw_tab_data(filename=os.path.join("output", "tab_data.json")):
-    if not os.path.exists(filename): return None
-    with open(filename, "r") as f:
-        data = json.load(f)
-    
-    all_frames = []
-    for entry in data:
-        frame = [[] for _ in range(6)]
-        for n in entry["notes"]:
-            frame[n["string"]].append((n["x_pos"], n["fret"]))
-        all_frames.append(frame)
-    return all_frames
-
-def save_raw_tab_data(all_frame_results, filename=os.path.join("output", "tab_data.json")):
-    structured = []
-    for i, frame in enumerate(all_frame_results):
-        notes = []
-        for s_idx, string in enumerate(frame):
-            for x, fret in string:
-                notes.append({"string": s_idx, "fret": fret, "x_pos": x})
-        
-        notes.sort(key=lambda n: n["x_pos"])
-        structured.append({"frame": i, "notes": notes})
-
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
-    with open(filename, "w") as f: json.dump(structured, f, indent=4)
-
-def save_list(offsets, filename=os.path.join("output", "offsets.json")):
-    """Saves the list of integer offsets to a JSON file."""
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
-    with open(filename, "w") as f:
-        json.dump({"offsets": offsets}, f, indent=4)
-    print(f"Offsets saved to {filename}")
-
-def read_list(filename=os.path.join("output", "offsets.json")):
-    """Reads the list of integer offsets from a JSON file."""
-    if not os.path.exists(filename):
-        print(f"No offset file found at {filename}")
-        return None
-    with open(filename, "r") as f: data = json.load(f)
-    return data.get("offsets", [])
-
-def save_final_tab(final_tab_data, filename=os.path.join("output", "final_tab.json")):
-    """
-    Saves the post-clustering/stitched tab data.
-    final_tab_data: List of dicts [{"x": 123, "string": 0, "fret": "7"}, ...]
-    """
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
-    with open(filename, "w") as f:
-        json.dump(final_tab_data, f, indent=4)
-    print(f"Final tab saved to {filename}")
-
-def load_final_tab(filename=os.path.join("output", "final_tab.json")):
-    """
-    Loads the stitched tab data back into a list of dictionaries.
-    """
-    if not os.path.exists(filename):
-        return None
-    with open(filename, "r") as f:
-        return json.load(f)
+from data_export import load_final_tab
+import os
 
 def export_raw_frames_visual(all_frame_results, filename=os.path.join("output", "raw_frames_visual.txt")):
-    """
-    Exports each frame as its own individual ASCII tab block.
-    all_frame_results: [ [[(x, fret),...], [string1], ...], [frame2...]]
-    """
+    """ Exports each frame as its own individual ASCII tab block.  """
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     
     with open(filename, "w") as f:
@@ -221,15 +150,45 @@ def export_stitched_tab_visual(
                 accumulated_width += segment_len
                 line_end += 1
             
+            # Look for a barline to break on if it's close to the end of the line (e.g. >= 70% of effective_max)
+            best_barline_end = None
+            temp_width = 0
+            for idx in range(curr_seg_idx, line_end):
+                temp_width += len(full_strings[0][idx])
+                
+                # Check if this segment is a barline fret/symbol column
+                is_bar = False
+                if idx > 0 and idx % 2 == 0:
+                    col_idx = (idx - 2) // 2
+                    if col_idx < len(columns):
+                        is_bar = any(str(n['fret']) == '|' for n in columns[col_idx])
+                
+                if is_bar:
+                    if temp_width >= 0.7 * effective_max:
+                        best_barline_end = idx + 1 # break right after this barline segment
+            
+            if best_barline_end is not None:
+                line_end = best_barline_end
+                
             if line_end == curr_seg_idx:
                 line_end += 1
+                
+            # Check if this line is ending exactly on a barline segment
+            ends_on_barline = False
+            if line_end > 0 and (line_end - 1) % 2 == 0:
+                col_idx = (line_end - 1 - 2) // 2
+                if col_idx < len(columns):
+                    ends_on_barline = any(str(n['fret']) == '|' for n in columns[col_idx])
 
             for s_idx in range(6):
                 line_text = "".join(full_strings[s_idx][curr_seg_idx:line_end])
                 
-                # If this is the start of a block, it already has | and left padding
-                # We just need to add the right padding and close the pipe
-                f.write(line_text + pad_str + "|\n")
+                # If the line ends on a barline, it already has the closing pipe '|'.
+                # Otherwise, we need to add the right padding and close the pipe.
+                if ends_on_barline:
+                    f.write(line_text + "\n")
+                else:
+                    f.write(line_text + pad_str + "|\n")
             
             f.write("\n")
             

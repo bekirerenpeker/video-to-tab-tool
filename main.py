@@ -1,6 +1,6 @@
-from export import save_list
 from note_reading import read_notes
-from export import cleanup_previous_data, export_stitched_tab_visual
+from data_export import cleanup_previous_data, save_list
+from tab_export import export_stitched_tab_visual
 from video_utils import download_video, extract_frames, calibrate_strings
 from calculate_offsets import calculate_offsets
 from stiching import cluster_notes_to_tab

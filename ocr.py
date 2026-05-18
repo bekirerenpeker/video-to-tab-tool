@@ -4,12 +4,10 @@ import pytesseract
 import numpy as np
 import concurrent.futures
 from queue import Queue
-import os
-import re
 
 # NOTE: Set your Tesseract path before initializing the pool if needed
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-SKIP_OCR=True
+SKIP_OCR=False
 
 # TODO: optimize the ocr so that it runs faster it is curretly the bottleneck of the program
 LOOKALIKES = {
