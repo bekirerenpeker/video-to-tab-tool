@@ -61,6 +61,7 @@ def read_notes(folder, string_y_positions):
     tab_data = []
     all_frames = sorted([f for f in os.listdir(folder) if f.endswith('.png')])
     total_frames = len(all_frames)
+    all_detected_templates = []
 
     for idx, f in enumerate(all_frames):
         img_path = os.path.join(folder, f)
@@ -68,7 +69,14 @@ def read_notes(folder, string_y_positions):
         if frame is None: continue
 
         avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
-        note_positions, arches, slides, bars, strokes, arp_strokes = detect_notes(frame, string_y_positions)
+        note_positions, arches, slides, bars, strokes, arp_strokes, templates = detect_notes(frame, string_y_positions)
+        
+        for x_pos, ascii_str in templates:
+            all_detected_templates.append({
+                "frame": idx,
+                "x_pos": int(x_pos),
+                "ascii": ascii_str
+            })
         
         notes, debug_frame = debug_and_recognize_characters_threaded(
             frame, 
@@ -112,6 +120,12 @@ def read_notes(folder, string_y_positions):
                     return tab_data
         else: 
             if cv2.waitKey(1) & 0xFF == ord('q'): break
+
+    # Save detected templates
+    import json
+    templates_file = os.path.join("output", "detected_templates.json")
+    os.makedirs(os.path.dirname(templates_file), exist_ok=True)
+    with open(templates_file, "w") as f: json.dump(all_detected_templates, f, indent=4)
 
     save_raw_tab_data(tab_data)
     export_raw_frames_visual(tab_data)

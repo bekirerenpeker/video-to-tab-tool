@@ -133,6 +133,48 @@ def cluster_notes_to_tab(all_frames, offsets):
             for s_idx in range(6):
                 final_tab.append({"x": avg_x, "string": s_idx, "fret": "|"})
 
+    # --- LOAD, CLUSTER, DE-DUPLICATE AND INJECT DETECTED TEMPLATES ---
+    import os, json
+    templates_file = os.path.join("output", "detected_templates.json")
+    if os.path.exists(templates_file):
+        with open(templates_file, "r") as f:
+            detected_list = json.load(f)
+            
+        global_templates = []
+        for t in detected_list:
+            frame_idx = t["frame"]
+            local_x = t["x_pos"]
+            ascii_str = t["ascii"]
+            
+            # Calculate global X using cumulative offsets
+            global_x = local_x
+            if frame_idx > 0 and frame_idx - 1 < len(offsets):
+                global_x += sum(offsets[:frame_idx])
+            global_templates.append((global_x, ascii_str))
+            
+        # De-duplicate template detections using DBSCAN on global X coordinates
+        if global_templates:
+            t_data = np.array([[gt[0], 0] for gt in global_templates])
+            # Epsilon = 10 to cluster template matches within 10 pixels of each other
+            t_clustering = DBSCAN(eps=10, min_samples=1).fit(t_data)
+            t_labels = t_clustering.labels_
+            
+            for label in set(t_labels):
+                if label == -1: continue
+                t_indices = np.where(t_labels == label)[0]
+                pts = [global_templates[idx] for idx in t_indices]
+                
+                # Consensus ASCII representation (majority vote)
+                ascii_votes = [p[1] for p in pts]
+                consensus_ascii = max(set(ascii_votes), key=ascii_votes.count)
+                
+                # Average global X coordinate
+                avg_x = np.mean([p[0] for p in pts])
+                
+                # Inject 6 entries (one for each of the 6 strings)
+                for s_idx in range(6):
+                    final_tab.append({"x": avg_x, "string": s_idx, "fret": consensus_ascii[s_idx]})
+
     final_tab.sort(key=lambda n: n["x"])
     
     if DEBUG: show_stitching_debug(global_points, final_tab)

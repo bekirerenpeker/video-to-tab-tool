@@ -27,7 +27,7 @@ def preprocess_for_numbers(frame, avg_spacing):
     if DEBUG: cv2.imwrite(f"{OUTPUT_DIR}/01_numbers_only.png", processed)
 
     # REMOVE TEMPLATES
-    processed = remove_all_templates(processed, avg_spacing)
+    processed, detected_templates = remove_all_templates(processed, avg_spacing)
     if DEBUG: cv2.imwrite(f"{OUTPUT_DIR}/01_templates_removed.png", processed)
 
     # REMOVE GRAY VALUES (comment out if the tab doesnt have good contrast)
@@ -35,7 +35,7 @@ def preprocess_for_numbers(frame, avg_spacing):
     processed = cv2.bitwise_and(processed, processed, mask=strict_mask)
     if DEBUG: cv2.imwrite(f"{OUTPUT_DIR}/02_cleaned_gray_noise.png", processed)
 
-    return processed
+    return processed, detected_templates
 
 def detect_shape_bboxes(frame, avg_spacing):
     # BOLD THE NUMBERS SLIGHTLY TO ENSURE '0' AND '8' STAY CONNECTED
@@ -163,7 +163,7 @@ def merge_close_points(notes, min_dist=5):
 
 def detect_notes(frame, string_y_positions):
     avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
-    processed = preprocess_for_numbers(frame, avg_spacing)
+    processed, detected_templates = preprocess_for_numbers(frame, avg_spacing)
 
     arp_strokes = detect_and_remove_arp_strokes(processed, string_y_positions)
     bars = detect_and_remove_vertical_bars(processed, string_y_positions)
@@ -176,4 +176,4 @@ def detect_notes(frame, string_y_positions):
     notes = map_shapes_to_strings(bboxes, string_y_positions)
     merged_notes = merge_close_points(notes)
 
-    return merged_notes, arches, slides, bars, strokes, arp_strokes
+    return merged_notes, arches, slides, bars, strokes, arp_strokes, detected_templates

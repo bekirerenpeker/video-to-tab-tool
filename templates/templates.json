@@ -2,50 +2,57 @@
   "templates": [
     {
       "path": "templates/time_sig_44.png",
-      "target_ratio": 3
+      "target_ratio": 3,
+      "ascii": "--44--"
     },
     {
       "path": "templates/time_sig_24.png",
-      "target_ratio": 3
+      "target_ratio": 3,
+      "ascii": "--24--"
     },
     {
       "path": "templates/time_sig_34.png",
-      "target_ratio": 3
+      "target_ratio": 3,
+      "ascii": "--34--"
     },
     {
       "path": "templates/time_sig_68.png",
-      "target_ratio": 3
+      "target_ratio": 3,
+      "ascii": "--68--"
     },
-
     {
       "path": "templates/tab_text.png",
-      "target_ratio": 4.5
+      "target_ratio": 4.5,
+      "ascii": "TAB---"
     },
     {
       "path": "templates/s-gt_text.png",
-      "target_ratio": 2.3
+      "target_ratio": 2.3,
+      "ascii": "S-Gt--"
     },
-
     {
       "path": "templates/rest_quarter.png",
       "threshold": 0.8,
-      "target_ratio": 2
+      "target_ratio": 2,
+      "ascii": "--r---"
     },
     {
       "path": "templates/rest_eighth.png",
       "threshold": 0.8,
-      "target_ratio": 1
+      "target_ratio": 1,
+      "ascii": "--r---"
     },
     {
       "path": "templates/rest_sixteenth.png",
       "threshold": 0.8,
-      "target_ratio": 1
+      "target_ratio": 1,
+      "ascii": "--r---"
     },
-
     {
       "path": "templates/bend_up_start.png",
       "target_ratio": 2.75,
-      "mirror_vertical": true
+      "mirror_vertical": true,
+      "ascii": "--b---"
     }
   ]
 }
