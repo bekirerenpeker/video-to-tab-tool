@@ -5,10 +5,8 @@ import cv2
 
 DEBUG = True
 
-# TODO: refactor this code so that it works better and more correctly with the new note detection updates
-# also add more detection edge cases for articulations
-
 def cluster_notes_to_tab(all_frames, offsets):
+    from terminal_utils import draw_progress_bar
     global_points = []
     current_offset = 0
     
@@ -25,6 +23,9 @@ def cluster_notes_to_tab(all_frames, offsets):
     final_tab = []
     
     for s_idx in range(6):
+        # Draw clean, non-bloated progress bar
+        draw_progress_bar((s_idx + 1) / 6.0, prefix='Stitching Tab')
+        
         string_points = [p for p in global_points if p[1] == s_idx]
         if not string_points: continue
             
@@ -39,52 +40,58 @@ def cluster_notes_to_tab(all_frames, offsets):
             if label == -1: continue 
             
             cluster_indices = np.where(labels == label)[0]
-            pts = [string_points[i] for i in cluster_indices]
+            pts = [string_points[idx] for idx in cluster_indices]
             
             num_frames = len(set(p[3] for p in pts))
             raw_frets = [str(p[2]) for p in pts]
             
+            # --- EXTRACT SYMBOLS / VALUES ---
             processed_symbols = []
             harmonic_votes = 0
             ghost_votes = 0
+            
             for f in raw_frets:
-                if '<' in f and '>' in f and any(char.isdigit() for char in f): harmonic_votes += 1
-                if '(' in f and ')' in f and any(char.isdigit() for char in f): ghost_votes += 1
+                if '<' in f and '>' in f and any(char.isdigit() for char in f): 
+                    harmonic_votes += 1
+                if '(' in f and ')' in f and any(char.isdigit() for char in f): 
+                    ghost_votes += 1
 
-                if label == -1: continue
-                cluster_indices = np.where(labels == label)[0]
-                pts = [string_points[i] for i in cluster_indices]
-
-                num_frames = len(set(p[3] for p in pts))
-                raw_frets = [str(p[2]) for p in pts]
-
-                processed_symbols = []
-                for f in raw_frets:
-                    digit_match = "".join(filter(str.isdigit, f))
-                    if digit_match: processed_symbols.append(digit_match)
-                    elif 'X' in f.upper(): processed_symbols.append('X')
-                    elif 'h' in f: processed_symbols.append('h')
-                    elif 'p' in f: processed_symbols.append('p')
-                    elif '/' in f: processed_symbols.append('/')
-                    elif '\\' in f: processed_symbols.append('\\')
-                    elif '|' in f: processed_symbols.append('|')
-                    elif '$' in f: processed_symbols.append('$')
-                    elif '_' in f: processed_symbols.append('_')
-                    elif 'v' in f: processed_symbols.append('v')
-                    elif '^' in f: processed_symbols.append('^')
+                digit_match = "".join(filter(str.isdigit, f))
+                if digit_match: processed_symbols.append(digit_match)
+                elif 'X' in f.upper(): processed_symbols.append('X')
+                elif 'h' in f: processed_symbols.append('h')
+                elif 'p' in f: processed_symbols.append('p')
+                elif '/' in f: processed_symbols.append('/')
+                elif '\\' in f: processed_symbols.append('\\')
+                elif '|' in f: processed_symbols.append('|')
+                elif '$' in f: processed_symbols.append('$')
+                elif '_' in f: processed_symbols.append('_')
+                elif 'v' in f: processed_symbols.append('v')
+                elif '^' in f: processed_symbols.append('^')
                 
-            # --- HEURISTIC: When to apply symbols ---
+            # --- HEURISTIC: Articulation Consensus & Override ---
             is_harmonic = (harmonic_votes >= 1)
             is_ghost = (ghost_votes >= 1)
 
-            # --- VALIDATION & CONSENSUS ---
             is_valid_note = num_frames > 1 or len(processed_symbols) > 0
             if not is_valid_note: continue
 
             avg_x = np.mean([p[0] for p in pts])
             
             if processed_symbols:
-                consensus_val = max(set(processed_symbols), key=processed_symbols.count)
+                # Resolve the hold note vs legato/slide misdetection edge case
+                # If '_' is present, and it's mixed with 'h' or 'p', it is almost certainly a hold note!
+                if '_' in processed_symbols and ('h' in processed_symbols or 'p' in processed_symbols):
+                    consensus_val = '_'
+                # Handle stroke direction tied votes
+                elif all(sym in ('v', '^') for sym in processed_symbols):
+                    consensus_val = max(set(processed_symbols), key=processed_symbols.count)
+                # Handle slide direction tied votes
+                elif all(sym in ('/', '\\') for sym in processed_symbols):
+                    consensus_val = max(set(processed_symbols), key=processed_symbols.count)
+                else:
+                    consensus_val = max(set(processed_symbols), key=processed_symbols.count)
+                    
                 if is_harmonic and consensus_val != 'X': consensus_val = f"<{consensus_val}>"
                 if is_ghost and consensus_val != 'X': consensus_val = f"({consensus_val})"
             else:
@@ -92,7 +99,39 @@ def cluster_notes_to_tab(all_frames, offsets):
 
             if consensus_val == 'N': continue # skip "N" values in the final tab
                 
-            final_tab.append({"x": avg_x, "string": s_idx, "fret": consensus_val}) 
+            final_tab.append({"x": avg_x, "string": s_idx, "fret": consensus_val})
+
+    # --- CROSS-STRING BARLINE ALIGNMENT & COMPLETION ---
+    if final_tab:
+        final_pts = np.array([[n['x'], 0] for n in final_tab])
+        # Cluster the final X-coordinates to group them into vertical columns
+        col_clustering = DBSCAN(eps=8, min_samples=1).fit(final_pts)
+        col_labels = col_clustering.labels_
+        
+        indices_to_remove = set()
+        new_barline_columns = []
+        
+        for label in set(col_labels):
+            if label == -1: continue
+            col_indices = np.where(col_labels == label)[0]
+            col_notes = [final_tab[idx] for idx in col_indices]
+            
+            # Check if this column is a barline
+            # Classify as barline if at least 3 strings have '|'
+            bar_count = sum(1 for n in col_notes if n['fret'] == '|')
+            if bar_count >= 3:
+                avg_x = np.mean([n['x'] for n in col_notes])
+                indices_to_remove.update(col_indices)
+                new_barline_columns.append(avg_x)
+        
+        # 1. Remove all notes in the detected barline vertical slices
+        if indices_to_remove:
+            final_tab = [n for idx, n in enumerate(final_tab) if idx not in indices_to_remove]
+            
+        # 2. Add complete, clean '|' barlines on all 6 strings at the average X coordinate
+        for avg_x in new_barline_columns:
+            for s_idx in range(6):
+                final_tab.append({"x": avg_x, "string": s_idx, "fret": "|"})
 
     final_tab.sort(key=lambda n: n["x"])
     
