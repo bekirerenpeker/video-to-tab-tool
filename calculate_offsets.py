@@ -46,12 +46,55 @@ def get_offset_range_between_frames(frame1, frame2):
     min2, max2 = get_frame_bounds(frame2)
     return 0, max1 - min2
 
-def calculate_alignment_score(frame1, frame2, offset):
-    def get_pair_weight(val1, val2):
-        if val1 == val2: return PERFECT_MATCH_SCORE
-        if val1 == 'N' or val2 == 'N': return PARTIAL_MATCH_SCORE
-        return CONFLICT_SCORE
+def get_pair_score(val1, val2):
+    v1, v2 = str(val1), str(val2)
+    
+    # 1. Perfect Match
+    if v1 == v2:
+        if v1 == '|':
+            return 200  # Barline match is extremely strong
+        if v1 in ('v', '^', '$'):
+            return 150  # Stroke/Arpeggio match
+        if v1 in ('h', 'p', '/', '\\', '_'):
+            return 80   # Articulations/holds match (lower weight due to noise)
+        if v1 == 'N':
+            return 40   # Generic note match
+        if v1.isdigit():
+            return 100  # Exact fret match
+        return 80
+        
+    # 2. Fuzzy / Partial Matches
+    # One is 'N' (generic note)
+    if v1 == 'N' or v2 == 'N':
+        return 40
+        
+    # Articulations/holds are often confusable or noisy - match is considered a fuzzy match (rewarded slightly)
+    fuzzy_set = {'h', 'p', '/', '\\', '_'}
+    if v1 in fuzzy_set and v2 in fuzzy_set:
+        return 20
+        
+    # Stroke direction mismatch
+    if {v1, v2} <= {'v', '^'}:
+        return 30
+        
+    # 3. Conflicts
+    # Barline vs anything else is a major structural conflict
+    if v1 == '|' or v2 == '|':
+        return -200
+        
+    # Fret digit vs any structural/articulation marker is a clear conflict
+    is_v1_digit = v1.isdigit()
+    is_v2_digit = v2.isdigit()
+    if is_v1_digit != is_v2_digit:
+        return -150
+        
+    # Fret digit mismatch (e.g. fret 7 vs fret 9)
+    if is_v1_digit and is_v2_digit:
+        return -100
+        
+    return -80
 
+def calculate_alignment_score(frame1, frame2, offset):
     frame1_min, frame1_max = get_frame_bounds(frame1)
     frame2_min, frame2_max = get_frame_bounds(frame2)
     
@@ -81,10 +124,7 @@ def calculate_alignment_score(frame1, frame2, offset):
                 if i2 in matched_in_f2: continue
                 dist = abs(x2 - target_x_in_f2)
                 if dist <= MATCH_RADIUS:
-                    # Scoring logic
-                    if val1 == val2 and val1 != 'N': score = PERFECT_MATCH_SCORE
-                    elif val1 == 'N' or val2 == 'N': score = PARTIAL_MATCH_SCORE
-                    else: score = CONFLICT_SCORE
+                    score = get_pair_score(val1, val2)
                     
                     if score > best_note_score:
                         best_note_score, current_dist, best_match_idx = score, dist, i2
@@ -212,9 +252,11 @@ def show_alignment_debug(frame1, frame2, best_offset, best_score, frame_idx):
         cv2.rectangle(canvas, (frame1_min + 50, 50), (frame1_max + 50, 350), (0, 255, 255), 2)
         cv2.putText(canvas, "FRAME 1", (frame1_min + 50, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
 
-        # 5. Draw Frame 2 bounds (Blue)
-        cv2.rectangle(canvas, (frame2_min + 50, 50), (frame2_max + 50, 350), (255, 0, 0), 2)
-        cv2.putText(canvas, "FRAME 2", (frame2_min + 50, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+        # 5. Draw Frame 2 bounds (Blue) - Controlled by Mouse Offset
+        f2_min_offsetted = int(frame2_min + mouse_offset) + 50
+        f2_max_offsetted = int(frame2_max + mouse_offset) + 50
+        cv2.rectangle(canvas, (f2_min_offsetted, 50), (f2_max_offsetted, 350), (255, 0, 0), 2)
+        cv2.putText(canvas, "FRAME 2", (f2_min_offsetted, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
         # Info Text
         cv2.putText(canvas, f"FRAME {frame_idx} -> {frame_idx+1}", (50, 400), 
