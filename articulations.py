@@ -175,8 +175,6 @@ def detect_and_remove_vertical_bars(frame, string_y_positions):
 
     return [(x + (w // 2)) for x, y, w, h in only_bars]
 
-# TODO: improve detection by checking the head (min or max point) is in the middle
-# this will reduce the false detections and wont detect the arches that are not fully showing and cut by the frame
 def get_arch_data(contour, avg_spacing):
     pts = contour.reshape(-1, 2)
     x_pts = pts[:, 0].astype(float)
@@ -193,11 +191,19 @@ def get_arch_data(contour, avg_spacing):
         if len(residuals) > 0:
             mse = residuals[0] / len(x_pts)
             if mse > 20.0: return None
+            
+        if a == 0: return None
+        vertex_x = -b / (2 * a)
         
+        bbox = cv2.boundingRect(contour)
+        x, y, w, h = bbox
+        middle_x = x + w / 2.0
+        
+        if abs(vertex_x - middle_x) > 0.6 * avg_spacing: return None
         orientation = "up" if a < 0 else "down"
         
         return {
-            "bbox": cv2.boundingRect(contour),
+            "bbox": bbox,
             "contour": contour,
             "orientation": orientation
         }

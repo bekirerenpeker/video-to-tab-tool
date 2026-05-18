@@ -7,7 +7,7 @@ import os
 import cv2
 
 # doesn't go to the next frame until the user presses space
-DEBUG=False
+DEBUG=True
 
 def merge_notes_and_articulations(avg_spacing, notes, arches, slides, bars, strokes, arp_strokes):
     merged_notes = [sorted(string_notes, key=lambda n: n[0]) for string_notes in notes]
@@ -61,7 +61,7 @@ def read_notes(folder, string_y_positions):
     all_frames = sorted([f for f in os.listdir(folder) if f.endswith('.png')])
     total_frames = len(all_frames)
 
-    for idx, f in enumerate(all_frames):
+    for idx, f in enumerate(all_frames[91:]):
         img_path = os.path.join(folder, f)
         frame = cv2.imread(img_path)
         if frame is None: continue

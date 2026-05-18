@@ -9,7 +9,7 @@ import re
 
 # NOTE: Set your Tesseract path before initializing the pool if needed
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-SKIP_OCR=False
+SKIP_OCR=True
 
 # TODO: optimize the ocr so that it runs faster it is curretly the bottleneck of the program
 LOOKALIKES = {
