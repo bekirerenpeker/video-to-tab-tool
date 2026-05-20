@@ -74,6 +74,7 @@ def detect_and_remove_down_up_strokes(frame, string_y_positions):
 
     return strokes_data
 
+# TODO: it detects bars as arpeggioes sometimes fix that
 def is_arpeggio(contour, avg_spacing, frame):
     x, y, w, h = cv2.boundingRect(contour)
     if h < avg_spacing * 2.0: return False

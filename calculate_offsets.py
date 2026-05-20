@@ -9,11 +9,19 @@ INF, NEG_INF = 100000, -100000
 MATCH_RADIUS = 10
 JUMP_INTERVAL = 10
 
-PERFECT_MATCH_SCORE = 100 # same note
-PARTIAL_MATCH_SCORE = 40 # n and note
-CONFLICT_SCORE = -50 # different notes
-NO_MATCH_SCORE = -150 # no match within radius
-OUTSIDE_BOUNDS_SCORE = 0 # note out of bounds
+BARLINE_MATCH = 200
+STROKE_MATCH = 150
+ARTICULATION_MATCH = 80
+NOTE_MATCH = 100
+GENERIC_NOTE_MATCH = 40
+FUZZY_MATCH = 20
+STROKE_MISMATCH = 30
+BARLINE_CONFLICT = -200
+DIGIT_STRUCTURAL_CONFLICT = -150
+DIGIT_MISMATCH = -100
+DEFAULT_CONFLICT = -80
+NO_MATCH_PENALTY = -150
+UNMATCHED_PENALTY = -150
 
 # TODO: refactor this code since the new note reading is better and has more features
 # for example add different weights for bars, storkes, slides, hammer on, pull off etc.
@@ -49,50 +57,41 @@ def get_offset_range_between_frames(frame1, frame2):
 def get_pair_score(val1, val2):
     v1, v2 = str(val1), str(val2)
     
-    # 1. Perfect Match
     if v1 == v2:
         if v1 == '|':
-            return 200  # Barline match is extremely strong
+            return BARLINE_MATCH
         if v1 in ('v', '^', '$'):
-            return 150  # Stroke/Arpeggio match
+            return STROKE_MATCH
         if v1 in ('h', 'p', '/', '\\', '_'):
-            return 80   # Articulations/holds match (lower weight due to noise)
+            return ARTICULATION_MATCH
         if v1 == 'N':
-            return 40   # Generic note match
+            return GENERIC_NOTE_MATCH
         if v1.isdigit():
-            return 100  # Exact fret match
-        return 80
+            return NOTE_MATCH
+        return ARTICULATION_MATCH
         
-    # 2. Fuzzy / Partial Matches
-    # One is 'N' (generic note)
     if v1 == 'N' or v2 == 'N':
-        return 40
+        return GENERIC_NOTE_MATCH
         
-    # Articulations/holds are often confusable or noisy - match is considered a fuzzy match (rewarded slightly)
     fuzzy_set = {'h', 'p', '/', '\\', '_'}
     if v1 in fuzzy_set and v2 in fuzzy_set:
-        return 20
+        return FUZZY_MATCH
         
-    # Stroke direction mismatch
     if {v1, v2} <= {'v', '^'}:
-        return 30
+        return STROKE_MISMATCH
         
-    # 3. Conflicts
-    # Barline vs anything else is a major structural conflict
     if v1 == '|' or v2 == '|':
-        return -200
+        return BARLINE_CONFLICT
         
-    # Fret digit vs any structural/articulation marker is a clear conflict
     is_v1_digit = v1.isdigit()
     is_v2_digit = v2.isdigit()
     if is_v1_digit != is_v2_digit:
-        return -150
+        return DIGIT_STRUCTURAL_CONFLICT
         
-    # Fret digit mismatch (e.g. fret 7 vs fret 9)
     if is_v1_digit and is_v2_digit:
-        return -100
+        return DIGIT_MISMATCH
         
-    return -80
+    return DEFAULT_CONFLICT
 
 def calculate_alignment_score(frame1, frame2, offset):
     frame1_min, frame1_max = get_frame_bounds(frame1)
@@ -101,12 +100,7 @@ def calculate_alignment_score(frame1, frame2, offset):
     total_score = 0
     total_dist = 0
     match_count = 0
-    penalty_count = 0
     
-    # Track total unique notes in both frames to calculate "Density"
-    total_notes_in_f1 = sum(len(s) for s in frame1)
-    total_notes_in_f2 = sum(len(s) for s in frame2)
-
     for s_idx in range(6):
         notes1 = frame1[s_idx]
         notes2 = frame2[s_idx]
@@ -135,35 +129,16 @@ def calculate_alignment_score(frame1, frame2, offset):
                 matched_in_f2.add(best_match_idx)
                 match_count += 1
             elif is_visible_in_f2:
-                total_score += NO_MATCH_SCORE
-                penalty_count += 1
+                total_score += UNMATCHED_PENALTY
 
-        # Check for unmatched notes in Frame 2 that should have been in Frame 1
         for i2, (x2, val2) in enumerate(notes2):
             if i2 not in matched_in_f2:
                 original_x_in_f1 = x2 + offset
                 if frame1_min <= original_x_in_f1 <= frame1_max:
-                    total_score += NO_MATCH_SCORE
-                    penalty_count += 1
+                    total_score += UNMATCHED_PENALTY
 
-    # --- THE FIX: CALCULATE WEIGHTED SCORE ---
-    active_event_count = match_count + penalty_count
-    if active_event_count == 0: return 0, 0
-
-    # 1. Base Quality: The average score of the overlapping area
-    avg_quality = total_score / active_event_count
-    
-    # 2. Coverage Bonus: How many notes did we actually match relative 
-    # to the total notes in the frames? 
-    # This prevents "one lucky match" from winning.
-    coverage = match_count / (total_notes_in_f1 + total_notes_in_f2 - match_count)
-    
-    # 3. Final Weighted Score:
-    # We add a significant weight to coverage so that 100 matches 
-    # will always outweigh 1 match, even if the 1 match is "perfect".
-    weighted_score = avg_quality + (coverage * 500) 
-
-    return weighted_score, total_dist / max(1, match_count)
+    avg_dist = total_dist / max(1, match_count)
+    return total_score, avg_dist
 
 def calculate_alignment_score_in_range(frame1, frame2, min_offset, max_offset, interval):
     offset = min_offset
