@@ -74,11 +74,10 @@ def detect_and_remove_down_up_strokes(frame, string_y_positions):
 
     return strokes_data
 
-# TODO: it detects bars as arpeggioes sometimes fix that
 def is_arpeggio(contour, avg_spacing, frame):
     x, y, w, h = cv2.boundingRect(contour)
     if h < avg_spacing * 2.0: return False
-    if w < avg_spacing * 0.1 or w > avg_spacing * 0.5: return False
+    if w < avg_spacing * 0.15 or w > avg_spacing * 0.5: return False
 
     roi = frame[y:y+h, x:x+w]
     
@@ -129,7 +128,7 @@ def detect_and_remove_arp_strokes(frame, string_y_positions):
 
         arps_data.append((x + (w//2), top_string_idx, bottom_string_idx))
 
-    if DEBUG:
+    if DEBUG or True:
         debug_frame = healed.copy()
         debug_frame = cv2.cvtColor(debug_frame, cv2.COLOR_GRAY2BGR)
         for c in arps:
