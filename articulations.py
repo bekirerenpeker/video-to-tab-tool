@@ -128,7 +128,7 @@ def detect_and_remove_arp_strokes(frame, string_y_positions):
 
         arps_data.append((x + (w//2), top_string_idx, bottom_string_idx))
 
-    if DEBUG or True:
+    if DEBUG:
         debug_frame = healed.copy()
         debug_frame = cv2.cvtColor(debug_frame, cv2.COLOR_GRAY2BGR)
         for c in arps:
