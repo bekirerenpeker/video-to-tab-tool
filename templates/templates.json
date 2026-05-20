@@ -2,21 +2,25 @@
   "templates": [
     {
       "path": "templates/time_sig_44.png",
+      "threshold": 0.8,
       "target_ratio": 3,
       "ascii": "--44--"
     },
     {
       "path": "templates/time_sig_24.png",
+      "threshold": 0.8,
       "target_ratio": 3,
       "ascii": "--24--"
     },
     {
       "path": "templates/time_sig_34.png",
+      "threshold": 0.8,
       "target_ratio": 3,
       "ascii": "--34--"
     },
     {
       "path": "templates/time_sig_68.png",
+      "threshold": 0.8,
       "target_ratio": 3,
       "ascii": "--68--"
     },
