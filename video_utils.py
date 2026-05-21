@@ -4,7 +4,7 @@ import sys
 import cv2
 import yt_dlp
 
-from data_export import save_list
+from data_export import cleanup_previous_data, save_list
 from terminal_utils import draw_progress_bar
 
 OUTPUT_DIR = "output"
@@ -149,6 +149,9 @@ def convert_to_seconds(time_str):
 
 
 def handle_frames_fetching():
+    print("Cleaning up previous data...")
+    cleanup_previous_data()
+
     url = input("YouTube URL: ")
     start_seconds = convert_to_seconds(input("Start Time (default 0.02s): ") or "0.02")
     end_seconds = convert_to_seconds(input("End Time (default 1.00s): ") or "1.00")
@@ -174,3 +177,7 @@ def handle_frames_fetching():
     sample_img = cv2.imread(sample_img_path)
     string_y_positions = calibrate_strings(sample_img)
     save_list(string_y_positions, os.path.join("output", "string_positions.json"))
+
+
+if __name__ == "__main__":
+    handle_frames_fetching()
