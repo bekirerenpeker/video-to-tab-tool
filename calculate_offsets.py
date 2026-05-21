@@ -25,9 +25,6 @@ DEFAULT_CONFLICT = -80
 NO_MATCH_PENALTY = -150
 UNMATCHED_PENALTY = -150
 
-# TODO: refactor this code since the new note reading is better and has more features
-# for example add different weights for bars, storkes, slides, hammer on, pull off etc.
-
 
 def find_best_match_index(string1, string2, offset, note_idx):
     best_match_idx = -1
