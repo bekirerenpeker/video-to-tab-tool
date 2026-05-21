@@ -1,8 +1,10 @@
 import os
+import sys
 
 import cv2
 import yt_dlp
 
+from data_export import save_list
 from terminal_utils import draw_progress_bar
 
 OUTPUT_DIR = "output"
@@ -126,3 +128,49 @@ def calibrate_strings(sample_frame):
 
     cv2.destroyWindow("Calibrate Strings")
     return sorted(y_coords)
+
+
+def convert_to_seconds(time_str):
+    """
+    Converts M.SS or MM.SS format into total integer seconds.
+    Example: 1.23 -> 83
+    """
+    try:
+        if "." in time_str:
+            minutes, seconds = time_str.split(".")
+            # Ensure seconds part is treated as 2 digits (e.g., .5 is .05)
+            total_seconds = int(minutes) * 60 + int(seconds)
+            return total_seconds
+        else:
+            return int(time_str)
+    except ValueError:
+        print(f"Invalid time format: {time_str}. Use M.SS (e.g. 1.23)")
+        sys.exit(1)
+
+
+def handle_frames_fetching():
+    url = input("YouTube URL: ")
+    start_seconds = convert_to_seconds(input("Start Time (default 0.02s): ") or "0.02")
+    end_seconds = convert_to_seconds(input("End Time (default 1.00s): ") or "1.00")
+    interval = float(input("Frame interval (default 1.0): ") or 1.0)
+
+    print(f"\n==== Downloading section {start_seconds}s to {end_seconds}s... ====")
+    try:
+        video_file = download_video(url, start_seconds, end_seconds)
+    except Exception as e:
+        print(f"Download failed: {e}")
+        sys.exit(1)
+
+    print("\n==== Opening video for ROI selection... ====")
+    folder = extract_frames(video_file, start_seconds, end_seconds, interval)
+    if folder:
+        print(f"\nSuccess! Frames are stored in: {folder}")
+    else:
+        print("\nExtraction failed.")
+        sys.exit(1)
+
+    print("\n==== Calibrating string positions... ====")
+    sample_img_path = os.path.join(folder, "frame_0000.png")
+    sample_img = cv2.imread(sample_img_path)
+    string_y_positions = calibrate_strings(sample_img)
+    save_list(string_y_positions, os.path.join("output", "string_positions.json"))

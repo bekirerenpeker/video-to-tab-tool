@@ -216,7 +216,6 @@ def cluster_notes_to_tab(all_frames, offsets):
 
     if DEBUG:
         show_stitching_debug(global_points, final_tab)
-    save_final_tab(final_tab)
     return final_tab
 
 
@@ -322,11 +321,13 @@ def show_stitching_debug(global_points, final_tab):
     cv2.destroyWindow("Interactive Stitcher")
 
 
-def main():
+def handle_stitching():
+    print("\n==== Stitching frames together... ====")
     tab_data = import_raw_tab_data()
     offsets = read_list()
     final_tab = cluster_notes_to_tab(tab_data, offsets)
+    save_final_tab(final_tab)
 
 
 if __name__ == "__main__":
-    main()
+    handle_stitching()

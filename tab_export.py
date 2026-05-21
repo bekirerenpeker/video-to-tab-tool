@@ -212,6 +212,11 @@ def export_stitched_tab_visual(
     print(f"Visual tab saved to {filename}")
 
 
-if __name__ == "__main__":
+def handle_export():
+    print("\n==== Exporting to Tablature... ====")
     final_tab = load_final_tab()
     export_stitched_tab_visual(final_tab, spacing_ratio=0.08)
+
+
+if __name__ == "__main__":
+    handle_export()

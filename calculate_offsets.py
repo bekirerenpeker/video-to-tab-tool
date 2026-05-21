@@ -410,15 +410,16 @@ def calculate_offsets(tab_data):
         if show_debug_window:
             show_debug_window = show_alignment_debug(f1, f2, best_offset, best_score, i)
 
-    save_list(offsets)
     return offsets
 
 
-def main():
+def handle_calculate_offsets():
+    print("\n==== Calculating offsets between frames... ====")
     tab_data = import_raw_tab_data()
     offsets = calculate_offsets(tab_data)
+    save_list(offsets)
     cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
-    main()
+    handle_calculate_offsets()

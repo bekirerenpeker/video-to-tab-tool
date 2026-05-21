@@ -188,7 +188,12 @@ def read_notes(folder, string_y_positions):
     return tab_data
 
 
-if __name__ == "__main__":
+def handle_note_reading():
+    print("\n==== Processing frames into data... ====")
     string_y_positions = read_list(os.path.join("output", "string_positions.json"))
     read_notes(os.path.join("output", "frame_dump"), string_y_positions)
     cv2.destroyAllWindows()
+
+
+if __name__ == "__main__":
+    handle_note_reading()
