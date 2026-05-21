@@ -1,12 +1,15 @@
-from note_reading import read_notes
-from data_export import cleanup_previous_data, save_list
-from tab_export import export_stitched_tab_visual
-from video_utils import download_video, extract_frames, calibrate_strings
-from calculate_offsets import calculate_offsets
-from stiching import cluster_notes_to_tab
-import sys
 import os
+import sys
+
 import cv2
+
+from calculate_offsets import calculate_offsets
+from data_export import cleanup_previous_data, save_list
+from note_reading import read_notes
+from stiching import cluster_notes_to_tab
+from tab_export import export_stitched_tab_visual
+from video_utils import calibrate_strings, download_video, extract_frames
+
 
 def convert_to_seconds(time_str):
     """
@@ -25,6 +28,7 @@ def convert_to_seconds(time_str):
         print(f"Invalid time format: {time_str}. Use M.SS (e.g. 1.23)")
         sys.exit(1)
 
+
 # TODO: instead of getting the returns of these steps since they already save the data to files
 # update the functions so they dont take in arguments and load the data themselves this is more robust and code efficent
 def main():
@@ -32,7 +36,7 @@ def main():
 
     print("Cleaning up previous data...")
     cleanup_previous_data()
-    
+
     url = input("YouTube URL: ")
     start_raw = input("Start Time (M.SS, e.g., 1.23): ")
     end_raw = input("End Time (M.SS, e.g., 2.45): ")
@@ -41,13 +45,19 @@ def main():
     interval = float(input("Frame interval (e.g., 1.0 for every second): ") or 1.0)
 
     print(f"\n==== Downloading section {start_seconds}s to {end_seconds}s... ====")
-    try: video_file = download_video(url, start_seconds, end_seconds)
-    except Exception as e: print(f"Download failed: {e}"); sys.exit(1)
+    try:
+        video_file = download_video(url, start_seconds, end_seconds)
+    except Exception as e:
+        print(f"Download failed: {e}")
+        sys.exit(1)
 
-    print(f"\n==== Opening video for ROI selection... ====")
+    print("\n==== Opening video for ROI selection... ====")
     folder = extract_frames(video_file, start_seconds, end_seconds, interval)
-    if folder: print(f"\nSuccess! Frames are stored in: {folder}")
-    else: print("\nExtraction failed."); sys.exit(1)
+    if folder:
+        print(f"\nSuccess! Frames are stored in: {folder}")
+    else:
+        print("\nExtraction failed.")
+        sys.exit(1)
 
     print("\n==== Calibrating string positions... ====")
     sample_img_path = os.path.join(folder, "frame_0000.png")
@@ -69,6 +79,7 @@ def main():
 
     print("\nProcess complete!")
     cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     main()
