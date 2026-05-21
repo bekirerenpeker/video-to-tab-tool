@@ -13,8 +13,9 @@ SKIP_OCR = False
 # TODO: optimize the ocr so that it runs faster it is curretly the bottleneck of the program
 LOOKALIKES = {
     "0": ["O", "o", "Q", "U", "e)", "ce"],
-    "1": ["I", "l", "41"],
+    "1": ["I", "l", "41", "q"],
     "2": ["Z", "z", "22"],
+    "4": ["/"],
     "5": ["?"],
     "6": ["b"],
     "7": ["C", "t", "A"],

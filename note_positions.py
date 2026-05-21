@@ -25,9 +25,8 @@ def preprocess_for_numbers(frame, avg_spacing):
         pass
 
     processed = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    img_h, img_w = processed.shape
     if DEBUG:
-        cv2.imwrite(f"{OUTPUT_DIR}/0_grayscale.png", processed)
+        cv2.imwrite(f"{OUTPUT_DIR}/00_grayscale.png", processed)
 
     # STANDARDIZE TO WHITE-ON-BLACK
     median_brightness = np.median(processed)
@@ -44,13 +43,13 @@ def preprocess_for_numbers(frame, avg_spacing):
     # REMOVE TEMPLATES
     processed, detected_templates = remove_all_templates(processed, avg_spacing)
     if DEBUG:
-        cv2.imwrite(f"{OUTPUT_DIR}/01_templates_removed.png", processed)
+        cv2.imwrite(f"{OUTPUT_DIR}/02_templates_removed.png", processed)
 
     # REMOVE GRAY VALUES (comment out if the tab doesnt have good contrast)
     _, strict_mask = cv2.threshold(processed, 140, 255, cv2.THRESH_BINARY)
     processed = cv2.bitwise_and(processed, processed, mask=strict_mask)
     if DEBUG:
-        cv2.imwrite(f"{OUTPUT_DIR}/02_cleaned_gray_noise.png", processed)
+        cv2.imwrite(f"{OUTPUT_DIR}/04_cleaned_gray_noise.png", processed)
 
     return processed, detected_templates
 
@@ -61,7 +60,7 @@ def detect_shape_bboxes(frame, avg_spacing):
     processed = cv2.dilate(frame, dilation_kernel, iterations=2)
     _, processed = cv2.threshold(processed, 40, 255, cv2.THRESH_BINARY)
     if DEBUG:
-        cv2.imwrite(f"{OUTPUT_DIR}/04_bolded.png", processed)
+        cv2.imwrite(f"{OUTPUT_DIR}/05_bolded.png", processed)
 
     contours, _ = cv2.findContours(processed, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
     img_h, img_w = frame.shape[:2]

@@ -244,7 +244,7 @@ def get_arch_data(contour, avg_spacing):
             if mse > 20.0:
                 return None
 
-        if a == 0:
+        if abs(a) < 0.004:
             return None
         vertex_x = -b / (2 * a)
 
