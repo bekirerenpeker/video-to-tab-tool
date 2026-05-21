@@ -11,19 +11,25 @@ INF, NEG_INF = 100000, -100000
 MATCH_RADIUS = 10
 JUMP_INTERVAL = 10
 
-BARLINE_MATCH = 200
-STROKE_MATCH = 150
-ARTICULATION_MATCH = 80
-NOTE_MATCH = 100
+# Mismatches are now heavily penalized to instantly tank bad overlaps
+BARLINE_MATCH = 10  # Reduced. Barlines align by accident easily.
+STROKE_MATCH = 50
+ARTICULATION_MATCH = 50
+NOTE_MATCH = 100  # A perfect digit match remains the strongest signal
 GENERIC_NOTE_MATCH = 40
 FUZZY_MATCH = 20
-STROKE_MISMATCH = 30
-BARLINE_CONFLICT = -200
-DIGIT_STRUCTURAL_CONFLICT = -150
-DIGIT_MISMATCH = -100
-DEFAULT_CONFLICT = -80
-NO_MATCH_PENALTY = -150
-UNMATCHED_PENALTY = -150
+
+# FATAL PENALTIES
+STROKE_MISMATCH = -300
+BARLINE_CONFLICT = -300
+DIGIT_STRUCTURAL_CONFLICT = -500
+DIGIT_MISMATCH = -500  # '1' aligning with '2' completely destroys the score
+DEFAULT_CONFLICT = -400
+NO_MATCH_PENALTY = -400
+UNMATCHED_PENALTY = -400  # A note vanishing mid-screen means the offset is wrong
+
+MATCH_RADIUS = 20  # Increased slightly to tolerate video scroll jitter
+JUMP_INTERVAL = 10
 
 
 def find_best_match_index(string1, string2, offset, note_idx):
@@ -129,7 +135,7 @@ def calculate_alignment_score(frame1, frame2, offset):
                 dist = abs(x2 - target_x_in_f2)
                 if dist <= MATCH_RADIUS:
                     score = get_pair_score(val1, val2)
-
+                    score -= dist
                     if score > best_note_score:
                         best_note_score, current_dist, best_match_idx = score, dist, i2
 
