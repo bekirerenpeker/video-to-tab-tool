@@ -58,7 +58,7 @@ def detect_and_remove_down_up_strokes(frame, string_y_positions):
     strokes = [
         s
         for s in [is_down_up_stroke(e, avg_spacing, frame) for e in contours]
-        if s != None
+        if s is not None
     ]
     cv2.drawContours(frame, [s[0] for s in strokes], -1, (0, 0, 0), -1)
 
@@ -271,7 +271,7 @@ def detect_and_remove_hammer_ons_pull_offs(frame, string_y_positions):
 
     avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
     arches_data = [
-        e for e in [get_arch_data(c, avg_spacing) for c in contours] if e != None
+        e for e in [get_arch_data(c, avg_spacing) for c in contours] if e is not None
     ]
     cv2.drawContours(frame, [cd["contour"] for cd in arches_data], -1, (0, 0, 0), 6)
 

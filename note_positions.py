@@ -114,7 +114,6 @@ def detect_shape_bboxes(frame, avg_spacing):
 def map_shapes_to_strings(bboxes, string_y_positions):
     avg_spacing = abs(string_y_positions[0] - string_y_positions[-1]) / 5
     notes = [[] for _ in range(6)]
-    padding = 1
 
     # split merged notes
     split = []

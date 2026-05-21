@@ -113,6 +113,9 @@ def cluster_notes_to_tab(all_frames, offsets):
                     consensus_val = max(
                         set(processed_symbols), key=processed_symbols.count
                     )
+                # Handle 2 vs 5 confusion (bias towards 2)
+                elif "2" in processed_symbols and "5" in processed_symbols:
+                    consensus_val = "2"
                 else:
                     consensus_val = max(
                         set(processed_symbols), key=processed_symbols.count
