@@ -1,6 +1,6 @@
-# Video-to-Tab
+# Video-to-Tab Tool
 
-A pipeline for extracting guitar tablature from video. The project captures frames, detects tab regions, calibrates string positions, reads notes, computes frame offsets, and stitches the final tab into a text export.
+A tool that converts a video showing a tab moving across the screen into a complete text tab document. It works when the tab scrolls while the string positions remain fixed, extracting frames, detecting the tablature region, calibrating strings, reading notes, computing offsets, and stitching the final tab into a text export.
 
 ## Quick Start
 
