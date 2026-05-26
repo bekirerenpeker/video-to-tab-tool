@@ -54,6 +54,7 @@ The tool will download the video and begin frame extraction.
    - Export produces the stitched tab output.
 
    ![Stitching result](images/stiching_result.png)
+   ![Final stitched tab export](images/final_tab_export.png)
 
 ## Manual Step-by-Step Usage
 
@@ -100,6 +101,15 @@ The interactive region and string selection steps are the key manual actions.
 - Be careful when selecting the region: include enough border so hammer-ons and articulations are inside the box.
 - String calibration must be consistent across frames.
 - If the strings are misaligned, the note-reading and offset pipeline will produce incorrect results.
+
+## Shortcomings
+
+This tool is useful, but there are some current limitations:
+
+- OCR can be inaccurate and often recognizes characters incorrectly.
+- Detection of articulations and stroke markings is still imperfect and can be wrong.
+- Offset calculation can fail in special cases, causing misalignment between frames.
+- The OCR step is slower than desired and can take too long for long videos.
 
 ## License
 

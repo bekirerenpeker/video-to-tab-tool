@@ -41,16 +41,15 @@
       "ascii": "==q==="
     },
     {
-      "path": "templates/rest_eighth.png",
-      "threshold": 0.8,
-      "target_ratio": 1,
-      "ascii": "==e==="
-    },
-    {
       "path": "templates/rest_sixteenth.png",
       "threshold": 0.8,
-      "target_ratio": 1,
+      "target_ratio": 2,
       "ascii": "==x==="
+    },    {
+      "path": "templates/rest_eighth.png",
+      "threshold": 0.8,
+      "target_ratio": 1.3,
+      "ascii": "==e==="
     },
     {
       "path": "templates/bend_up_start.png",
